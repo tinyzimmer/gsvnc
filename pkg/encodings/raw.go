@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/tinyzimmer/go-gst/gst/video"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 
 	"github.com/tinyzimmer/go-gst/gst"
 )
@@ -42,7 +43,7 @@ func (r *RawEncoding) LinkPipeline(width, height int, pipeline *gst.Pipeline) (s
 }
 
 // HandleBuffer handles an image sample.
-func (r *RawEncoding) HandleBuffer(w io.Writer, f *PixelFormat, buf []byte) {
+func (r *RawEncoding) HandleBuffer(w io.Writer, f *types.PixelFormat, buf []byte) {
 	im := &image.RGBA{}
 	im.Pix = buf
 	b := im.Bounds()

@@ -11,26 +11,45 @@ type Event interface {
 	Handle(buf *buffer.ReadWriter, d *display.Display) error
 }
 
-// GetEventHandlerMap returns a map that can be used for handling events on an
-// rfb connection. The states of the handlers returned remain persistent so they
-// can be used consistently throughout a client session.
-func GetEventHandlerMap() map[uint8]Event {
-	setEncodings := &SetEncodings{}
-	setPixelFormat := &SetPixelFormat{}
-	fbUpdate := &FrameBufferUpdate{}
-	keyEvent := &KeyEvent{}
-	ptrEvent := &PointerEvent{}
-	return map[uint8]Event{
-		setEncodings.Code():   setEncodings,
-		setPixelFormat.Code(): setPixelFormat,
-		fbUpdate.Code():       fbUpdate,
-		keyEvent.Code():       keyEvent,
-		ptrEvent.Code():       ptrEvent,
+// EnabledEvents is a list of the currently enabled event handlers.
+var EnabledEvents = []Event{
+	&SetEncodings{},
+	&SetPixelFormat{},
+	&FrameBufferUpdate{},
+	&KeyEvent{},
+	&PointerEvent{},
+}
+
+// DisableEvent removes the given event from the list of EnabledEvents.
+func DisableEvent(ev Event) {
+	EnabledEvents = remove(EnabledEvents, ev)
+}
+
+func remove(ee []Event, e Event) []Event {
+	newEvs := make([]Event, 0)
+	for _, enabled := range ee {
+		if enabled.Code() != e.Code() {
+			newEvs = append(newEvs, enabled)
+		}
 	}
+	return newEvs
+}
+
+// GetEventHandlerMap returns a map that can be used for handling events on an
+// rfb connection.
+func GetEventHandlerMap() map[uint8]Event {
+	out := make(map[uint8]Event)
+	for _, ev := range EnabledEvents {
+		out[ev.Code()] = ev
+	}
+	return out
 }
 
 // CloseEventHandlers will iterate each event handler in the map and if it provides a Close
 // function it will execute it.
+//
+// This does not exist anymore, but left for convenience should it be useful in the future.
+// The Display object handles most of the state regarding an RFB session.
 func CloseEventHandlers(hdlrs map[uint8]Event) {
 	for _, ev := range hdlrs {
 		closer, ok := ev.(interface{ Close() })

@@ -4,25 +4,36 @@ import (
 	"github.com/tinyzimmer/go-gst/gst"
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/encodings"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 
-// Display represents a session with the local display.
-//
-// It is meant to be used as an object to be passed to event handlers.
+// Display represents a session with the local display. It manages the gstreamer pipelines
+// and listens for events from the RFB event handlers.
 type Display struct {
 	width, height int
-	pixelFormat   *encodings.PixelFormat
+	pixelFormat   *types.PixelFormat
 	encodings     []int32
 	currentEnc    encodings.Encoding
 	pipeline      *gst.Pipeline
 
-	buf      *buffer.ReadWriter
-	reqQueue chan *FrameBufferUpdateRequest
-	queue    chan []byte
+	// Read/writer for the connected client
+	buf *buffer.ReadWriter
+
+	// Incoming event queues
+	fbReqQueue chan *types.FrameBufferUpdateRequest
+	ptrEvQueue chan *types.PointerEvent
+	keyEvQueue chan *types.KeyEvent
+
+	// Memory of keys that are currently down. Reiterated in order
+	// on every down subsequent down event.
+	downKeys []uint32
+
+	// contains the incoming samples from the screen
+	frameQueue chan []byte
 }
 
 // DefaultPixelFormat is the default pixel format used in ServerInit messages.
-var DefaultPixelFormat = &encodings.PixelFormat{
+var DefaultPixelFormat = &types.PixelFormat{
 	BPP:        16,
 	Depth:      16,
 	BigEndian:  0,
@@ -43,10 +54,17 @@ func NewDisplay(width, height int, buf *buffer.ReadWriter) *Display {
 		height:      height,
 		buf:         buf,
 		pixelFormat: DefaultPixelFormat,
-		reqQueue:    make(chan *FrameBufferUpdateRequest, 128),
-		queue:       make(chan []byte, 128),
+		// Buffered channels
+		fbReqQueue: make(chan *types.FrameBufferUpdateRequest, 128),
+		ptrEvQueue: make(chan *types.PointerEvent, 128),
+		keyEvQueue: make(chan *types.KeyEvent, 128),
+		frameQueue: make(chan []byte, 128),
+		// down key memory
+		downKeys: make([]uint32, 0),
 	}
 	go display.pushFramesLoop()
+	go display.handleKeyEventsLoop()
+	go display.handlePtrEventsLoop()
 	return display
 }
 
@@ -60,10 +78,10 @@ func (d *Display) SetDimensions(width, height int) {
 }
 
 // GetPixelFormat returns the current pixel format for the display.
-func (d *Display) GetPixelFormat() *encodings.PixelFormat { return d.pixelFormat }
+func (d *Display) GetPixelFormat() *types.PixelFormat { return d.pixelFormat }
 
 // SetPixelFormat sets the pixel format for the display.
-func (d *Display) SetPixelFormat(pf *encodings.PixelFormat) { d.pixelFormat = pf }
+func (d *Display) SetPixelFormat(pf *types.PixelFormat) { d.pixelFormat = pf }
 
 // GetEncodings returns the encodings currently supported by the client
 // connected to this display.
@@ -79,13 +97,21 @@ func (d *Display) SetEncodings(encs []int32) {
 func (d *Display) GetCurrentEncoding() encodings.Encoding { return d.currentEnc }
 
 // GetLastImage returns the most recent frame for the display.
-func (d *Display) GetLastImage() []byte { return <-d.queue }
+func (d *Display) GetLastImage() []byte { return <-d.frameQueue }
 
-// Dispatch dispatches a FrameBufferUpdateRequest on the request queue.
-func (d *Display) Dispatch(req *FrameBufferUpdateRequest) { d.reqQueue <- req }
+// DispatchFrameBufferUpdate dispatches a FrameBufferUpdateRequest on the request queue.
+func (d *Display) DispatchFrameBufferUpdate(req *types.FrameBufferUpdateRequest) { d.fbReqQueue <- req }
+
+// DispatchKeyEvent dispatches a key event to the queue.
+func (d *Display) DispatchKeyEvent(ev *types.KeyEvent) { d.keyEvQueue <- ev }
+
+// DispatchPointerEvent dispatches a pointer event to the queue.
+func (d *Display) DispatchPointerEvent(ev *types.PointerEvent) { d.ptrEvQueue <- ev }
 
 // Close will stop the gstreamer pipeline.
 func (d *Display) Close() error {
-	close(d.reqQueue)
+	close(d.fbReqQueue)
+	close(d.ptrEvQueue)
+	close(d.keyEvQueue)
 	return d.pipeline.Destroy()
 }

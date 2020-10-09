@@ -11,6 +11,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
+
 	"github.com/tinyzimmer/gsvnc/pkg/config"
 
 	"github.com/tinyzimmer/gsvnc/pkg/util"
@@ -101,15 +103,20 @@ func run(cmd *cobra.Command, args []string) error {
 		log.Printf("Using initial screen resolution of %dx%d", w, h)
 	}
 
-	var enabledAuths, enabledEncs []string
+	var enabledAuths, enabledEncs, enabledEvents []string
 	for _, sec := range auth.EnabledAuthTypes {
 		enabledAuths = append(enabledAuths, reflect.TypeOf(sec).Elem().Name())
 	}
 	for _, enc := range encodings.EnabledEncodings {
 		enabledEncs = append(enabledEncs, reflect.TypeOf(enc).Elem().Name())
 	}
+	for _, ev := range events.EnabledEvents {
+		enabledEvents = append(enabledEvents, reflect.TypeOf(ev).Elem().Name())
+	}
+
 	log.Println("Enabled security types:", enabledAuths)
 	log.Println("Enabled encodings:", enabledEncs)
+	log.Println("Enabled event handlers:", enabledEvents)
 
 	if auth.VNCAuthIsEnabled() {
 		log.Println("VNCAuth is enabled, generating a server password")
@@ -125,50 +132,6 @@ func run(cmd *cobra.Command, args []string) error {
 	log.Println("Listening for rfb connections on", bindAddr)
 
 	return server.Serve(l)
-}
-
-func configureFeatures(args []string) error {
-	if len(args) == 0 {
-		return nil
-	}
-ArgLoop:
-	for _, arg := range args {
-
-		if strings.HasPrefix(arg, "+") {
-
-			fmt.Println("There are currently no optional featuress to enable, ignoring", arg)
-
-		} else if strings.HasPrefix(arg, "-") {
-
-			featName := strings.TrimPrefix(arg, "-")
-
-			for _, sec := range auth.EnabledAuthTypes {
-				if reflect.TypeOf(sec).Elem().Name() == featName {
-					if auth.TightIsEnabled() {
-						auth.DisableTightAuth(int32(sec.Code()))
-					}
-					auth.DisableAuth(sec)
-					continue ArgLoop
-				}
-			}
-			for _, enc := range encodings.EnabledEncodings {
-				if reflect.TypeOf(enc).Elem().Name() == featName {
-					if auth.TightIsEnabled() {
-						auth.DisableTightAuth(int32(enc.Code()))
-					}
-					encodings.DisableEncoding(enc)
-					continue ArgLoop
-				}
-			}
-
-			// If we got here it means we didn't have anything matching the request.
-			return fmt.Errorf("Could not find any features with the name, %s", featName)
-
-		} else {
-			return fmt.Errorf("Bogus argument: %s", arg)
-		}
-	}
-	return nil
 }
 
 func doListFeatures() {

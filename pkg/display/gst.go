@@ -95,7 +95,7 @@ func (d *Display) Start() error {
 					Map(gst.MapRead).
 					Bytes()
 
-				d.queue <- imgBytes
+				d.frameQueue <- imgBytes
 				return gst.FlowOK
 			},
 		})

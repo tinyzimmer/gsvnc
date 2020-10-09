@@ -5,22 +5,15 @@ import (
 	"log"
 	"time"
 
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
-
-// FrameBufferUpdateRequest represents a request to update the frame buffer.
-type FrameBufferUpdateRequest struct {
-	IncrementalFlag     uint8
-	X, Y, Width, Height uint16
-}
-
-func (r *FrameBufferUpdateRequest) incremental() bool { return r.IncrementalFlag != 0 }
 
 func (d *Display) pushFramesLoop() {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
-		case ur, ok := <-d.reqQueue:
+		case ur, ok := <-d.fbReqQueue:
 			if !ok {
 				// Client disconnected.
 				return
@@ -35,25 +28,18 @@ func (d *Display) pushFramesLoop() {
 
 // Server -> Client
 const (
-	encodingRaw          = 0
 	encodingCopyRect     = 1
 	cmdFramebufferUpdate = 0
 )
 
-type frameBufferRectangle struct {
-	X, Y          uint16
-	Width, Height uint16
-	EncType       int32
-}
-
-func (d *Display) pushFrame(ur *FrameBufferUpdateRequest) {
+func (d *Display) pushFrame(ur *types.FrameBufferUpdateRequest) {
 
 	li := d.GetLastImage()
 	if li == nil {
 		return
 	}
 
-	if ur.incremental() {
+	if ur.Incremental() {
 		width, height := d.GetDimensions()
 		buf := new(bytes.Buffer)
 
@@ -65,7 +51,7 @@ func (d *Display) pushFrame(ur *FrameBufferUpdateRequest) {
 		// num rectangles
 		util.Write(buf, uint16(1))
 
-		util.PackStruct(buf, &frameBufferRectangle{
+		util.PackStruct(buf, &types.FrameBufferRectangle{
 			X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: encodingCopyRect, // TODO make sure supported
 		})
 
@@ -99,7 +85,7 @@ func (d *Display) pushImage(imgData []byte) {
 	enc := d.GetCurrentEncoding()
 
 	// Send that rectangle:
-	util.PackStruct(buf, &frameBufferRectangle{
+	util.PackStruct(buf, &types.FrameBufferRectangle{
 		X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: enc.Code(), // TODO make sure supported
 	})
 

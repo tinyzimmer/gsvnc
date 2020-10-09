@@ -5,26 +5,8 @@ import (
 	"reflect"
 
 	"github.com/tinyzimmer/go-gst/gst"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
-
-// PixelFormat represents the current pixel format for the display.
-// Fields are declared in the order they appear in a SetPixelFormat
-// request.
-type PixelFormat struct {
-	BPP, Depth                      uint8
-	BigEndian, TrueColour           uint8 // flags; 0 or non-zero
-	RedMax, GreenMax, BlueMax       uint16
-	RedShift, GreenShift, BlueShift uint8
-}
-
-// IsScreensThousands returns if the format requested by the OS X "Screens" app's "Thousands" mode.
-func (f *PixelFormat) IsScreensThousands() bool {
-	// Note: Screens asks for Depth 16; RealVNC asks for Depth 15 (which is more accurate)
-	// Accept either. Same format.
-	return f.BPP == 16 && (f.Depth == 16 || f.Depth == 15) && f.TrueColour != 0 &&
-		f.RedMax == 0x1f && f.GreenMax == 0x1f && f.BlueMax == 0x1f &&
-		f.RedShift == 10 && f.GreenShift == 5 && f.BlueShift == 0
-}
 
 // Encoding is an interface to be implemented by different encoding handlers.
 type Encoding interface {
@@ -40,7 +22,7 @@ type Encoding interface {
 	LinkPipeline(width, height int, pipeline *gst.Pipeline) (start, end *gst.Element, err error)
 	// HandleBuffer should craft a rectangle from the given byte sequence and
 	// queue it onto the given writer.
-	HandleBuffer(w io.Writer, format *PixelFormat, buf []byte)
+	HandleBuffer(w io.Writer, format *types.PixelFormat, buf []byte)
 }
 
 // EnabledEncodings lists the encodings currently enabled by the server. It can be mutated

@@ -8,6 +8,7 @@ import (
 	"github.com/tinyzimmer/go-gst/gst/video"
 
 	"github.com/tinyzimmer/go-gst/gst"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
 
@@ -45,7 +46,7 @@ func (t *TightEncoding) LinkPipeline(width, height int, pipeline *gst.Pipeline) 
 }
 
 // HandleBuffer handles an image sample.
-func (t *TightEncoding) HandleBuffer(w io.Writer, f *PixelFormat, buf []byte) {
+func (t *TightEncoding) HandleBuffer(w io.Writer, f *types.PixelFormat, buf []byte) {
 	i, _ := strconv.ParseInt("10010000", 2, 64) // JPEG encoding
 	util.Write(w, uint8(i))
 
