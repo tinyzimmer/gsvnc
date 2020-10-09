@@ -39,28 +39,28 @@ func (d *Display) pushFrame(ur *types.FrameBufferUpdateRequest) {
 		return
 	}
 
-	if ur.Incremental() {
-		width, height := d.GetDimensions()
-		buf := new(bytes.Buffer)
+	// if ur.Incremental() {
+	// 	width, height := d.GetDimensions()
+	// 	buf := new(bytes.Buffer)
 
-		// log.Printf("Client wants incremental update, sending none. %#v", ur)
+	// 	// log.Printf("Client wants incremental update, sending none. %#v", ur)
 
-		util.Write(buf, uint8(cmdFramebufferUpdate))
-		// padding byte
-		util.Write(buf, uint8(0))
-		// num rectangles
-		util.Write(buf, uint16(1))
+	// 	util.Write(buf, uint8(cmdFramebufferUpdate))
+	// 	// padding byte
+	// 	util.Write(buf, uint8(0))
+	// 	// num rectangles
+	// 	util.Write(buf, uint16(1))
 
-		util.PackStruct(buf, &types.FrameBufferRectangle{
-			X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: encodingCopyRect, // TODO make sure supported
-		})
+	// 	util.PackStruct(buf, &types.FrameBufferRectangle{
+	// 		X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: encodingCopyRect, // TODO make sure supported
+	// 	})
 
-		util.Write(buf, uint16(0)) // src-x
-		util.Write(buf, uint16(0)) // src-y
+	// 	util.Write(buf, uint16(0)) // src-x
+	// 	util.Write(buf, uint16(0)) // src-y
 
-		d.buf.Dispatch(buf.Bytes())
-		return
-	}
+	// 	d.buf.Dispatch(buf.Bytes())
+	// 	return
+	// }
 
 	d.pushImage(li)
 }
