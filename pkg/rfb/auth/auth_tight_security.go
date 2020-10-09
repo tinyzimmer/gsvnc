@@ -21,65 +21,63 @@ func (t *TightSecurity) Negotiate(rw *buffer.ReadWriter) error {
 	if err := negotiateTightTunnel(rw); err != nil {
 		return err
 	}
-
 	return negotiateTightAuth(rw)
 }
 
 // ExtendServerInit signals to the rfb server that we extend the ServerInit message.
 func (t *TightSecurity) ExtendServerInit(buf io.Writer) {
-	util.Write(buf, uint16(len(tightServerMessages)))
-	util.Write(buf, uint16(len(tightClientMessages)))
-	util.Write(buf, uint16(len(tightEncodingCapabilities)))
+	util.Write(buf, uint16(len(TightServerMessages)))
+	util.Write(buf, uint16(len(TightClientMessages)))
+	util.Write(buf, uint16(len(TightEncodingCapabilities)))
 	util.Write(buf, uint8(0)) // padding
 	util.Write(buf, uint8(0)) // padding
-	for _, cap := range tightServerMessages {
-		util.Write(buf, cap.code)
-		util.Write(buf, []byte(cap.vendor))
-		util.Write(buf, []byte(cap.signature))
+	for _, cap := range TightServerMessages {
+		util.PackStruct(buf, &cap)
 	}
-	for _, cap := range tightClientMessages {
-		util.Write(buf, cap.code)
-		util.Write(buf, []byte(cap.vendor))
-		util.Write(buf, []byte(cap.signature))
+	for _, cap := range TightClientMessages {
+		util.PackStruct(buf, &cap)
 	}
-	for _, cap := range tightEncodingCapabilities {
-		util.Write(buf, cap.code)
-		util.Write(buf, []byte(cap.vendor))
-		util.Write(buf, []byte(cap.signature))
+	for _, cap := range TightEncodingCapabilities {
+		util.PackStruct(buf, &cap)
 	}
 }
 
-type capability struct {
-	code              int32
-	vendor, signature string
+// Capability represents a TightSecurity capability.
+type Capability struct {
+	Code              int32
+	Vendor, Signature string
 }
 
-var tightTunnelCapabilities = []capability{
-	{code: 0, vendor: "TGHT", signature: "NOTUNNEL"},
+// TightTunnelCapabilities represents TightSecurity tunnel capabilities.
+var TightTunnelCapabilities = []Capability{
+	{Code: 0, Vendor: "TGHT", Signature: "NOTUNNEL"},
 }
 
-var tightAuthCapabilities = []capability{
-	{code: 1, vendor: "STDV", signature: "NOAUTH__"},
+// TightAuthCapabilities represents TightSecurity auth capabilities.
+var TightAuthCapabilities = []Capability{
+	{Code: 1, Vendor: "STDV", Signature: "NOAUTH__"},
+	{Code: 2, Vendor: "STDV", Signature: "VNCAUTH_"},
 }
 
-var tightServerMessages = []capability{}
-var tightClientMessages = []capability{}
+// TightServerMessages represents supported tight server messages.
+var TightServerMessages = []Capability{}
 
-// TODO: this would be altered by command line options technically
-var tightEncodingCapabilities = []capability{
-	{code: 0, vendor: "STDV", signature: "RAW_____"},
-	{code: 1, vendor: "STDV", signature: "COPYRECT"},
-	{code: 7, vendor: "TGHT", signature: "TIGHT___"},
+// TightClientMessages represents supported tight client messages.
+var TightClientMessages = []Capability{}
+
+// TightEncodingCapabilities represents TightSecurity encoding capabilities.
+var TightEncodingCapabilities = []Capability{
+	{Code: 0, Vendor: "STDV", Signature: "RAW_____"},
+	{Code: 1, Vendor: "STDV", Signature: "COPYRECT"},
+	{Code: 7, Vendor: "TGHT", Signature: "TIGHT___"},
 }
 
 func negotiateTightTunnel(rw *buffer.ReadWriter) error {
 	// Write the supported tunnel capabilities to the client
 	buf := new(bytes.Buffer)
-	util.Write(buf, uint32(len(tightTunnelCapabilities)))
-	for _, cap := range tightTunnelCapabilities {
-		util.Write(buf, cap.code)
-		util.Write(buf, []byte(cap.vendor))
-		util.Write(buf, []byte(cap.signature))
+	util.Write(buf, uint32(len(TightTunnelCapabilities)))
+	for _, cap := range TightTunnelCapabilities {
+		util.PackStruct(buf, &cap)
 	}
 	rw.Dispatch(buf.Bytes())
 
@@ -98,11 +96,9 @@ func negotiateTightTunnel(rw *buffer.ReadWriter) error {
 
 func negotiateTightAuth(rw *buffer.ReadWriter) error {
 	buf := new(bytes.Buffer)
-	util.Write(buf, uint32(len(tightAuthCapabilities)))
-	for _, cap := range tightAuthCapabilities {
-		util.Write(buf, cap.code)
-		util.Write(buf, []byte(cap.vendor))
-		util.Write(buf, []byte(cap.signature))
+	util.Write(buf, uint32(len(TightAuthCapabilities)))
+	for _, cap := range TightAuthCapabilities {
+		util.PackStruct(buf, &cap)
 	}
 	rw.Dispatch(buf.Bytes())
 
@@ -110,10 +106,10 @@ func negotiateTightAuth(rw *buffer.ReadWriter) error {
 	var auth int32
 	rw.Read(&auth)
 
-	// We only support no auth for now
-	if auth != 1 {
+	if !IsSupported(uint8(auth)) {
 		return fmt.Errorf("client requested unsupported tight auth type: %d", auth)
 	}
 
-	return nil
+	authType := GetAuth(uint8(auth))
+	return authType.Negotiate(rw)
 }

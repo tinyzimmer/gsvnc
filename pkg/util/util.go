@@ -19,7 +19,14 @@ func PackStruct(buf io.Writer, data interface{}) error {
 	nVal := rv.Elem()
 	for i := 0; i < val.NumField(); i++ {
 		nvField := nVal.Field(i)
-		if err := binary.Write(buf, binary.BigEndian, nvField.Interface()); err != nil {
+		var wdata interface{}
+		if nvField.Kind() == reflect.String {
+			str := nvField.Interface().(string)
+			wdata = []byte(str)
+		} else {
+			wdata = nvField.Interface()
+		}
+		if err := binary.Write(buf, binary.BigEndian, wdata); err != nil {
 			return err
 		}
 	}

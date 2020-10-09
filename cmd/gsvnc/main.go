@@ -133,12 +133,18 @@ ArgLoop:
 
 			for _, sec := range auth.EnabledAuthTypes {
 				if reflect.TypeOf(sec).Elem().Name() == featName {
+					if auth.TightIsEnabled() {
+						auth.DisableTightAuth(int32(sec.Code()))
+					}
 					auth.DisableAuth(sec)
 					continue ArgLoop
 				}
 			}
 			for _, enc := range encodings.EnabledEncodings {
 				if reflect.TypeOf(enc).Elem().Name() == featName {
+					if auth.TightIsEnabled() {
+						auth.DisableTightAuth(int32(enc.Code()))
+					}
 					encodings.DisableEncoding(enc)
 					continue ArgLoop
 				}

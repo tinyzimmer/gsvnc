@@ -16,6 +16,7 @@ type Type interface {
 // by command line optionss.
 var EnabledAuthTypes = []Type{
 	&None{},
+	&VNCAuth{},
 	&TightSecurity{},
 }
 
@@ -29,9 +30,41 @@ func IsSupported(code uint8) bool {
 	return false
 }
 
+// TightIsEnabled returns true if TightSecurity is enabled. This is used to determine if
+// capabilities being mutated by the user also need to be updated here.
+func TightIsEnabled() bool {
+	t := &TightSecurity{}
+	for _, a := range EnabledAuthTypes {
+		if a.Code() == t.Code() {
+			return true
+		}
+	}
+	return false
+}
+
 // DisableAuth removes the given auth from the list of EnabledAuthTypes.
 func DisableAuth(auth Type) {
 	EnabledAuthTypes = remove(EnabledAuthTypes, auth)
+}
+
+// DisableTightAuth removes the given auth from the TightSecurity auth types.
+func DisableTightAuth(code int32) {
+	TightAuthCapabilities = removeCap(TightAuthCapabilities, code)
+}
+
+// DisableTightEncoding removes the given encoding from the TightSecurity encoding types.
+func DisableTightEncoding(code int32) {
+	TightEncodingCapabilities = removeCap(TightEncodingCapabilities, code)
+}
+
+func removeCap(cc []Capability, code int32) []Capability {
+	newCaps := make([]Capability, 0)
+	for _, enabled := range cc {
+		if enabled.Code != code {
+			newCaps = append(newCaps, enabled)
+		}
+	}
+	return newCaps
 }
 
 func remove(tt []Type, t Type) []Type {
