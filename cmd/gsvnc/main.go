@@ -11,6 +11,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/tinyzimmer/gsvnc/pkg/config"
+
+	"github.com/tinyzimmer/gsvnc/pkg/util"
+
 	"github.com/go-vgo/robotgo"
 	"github.com/spf13/cobra"
 
@@ -106,6 +110,13 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	log.Println("Enabled security types:", enabledAuths)
 	log.Println("Enabled encodings:", enabledEncs)
+
+	if auth.VNCAuthIsEnabled() {
+		log.Println("VNCAuth is enabled, generating a server password")
+		passw := util.RandomString(8)
+		config.VNCAuthPassword = passw
+		log.Println("Clients using VNCAuth can connect with the following password:", passw)
+	}
 
 	// Create a new rfb server
 	server := rfb.NewServer(w, h)

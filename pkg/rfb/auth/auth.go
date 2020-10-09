@@ -30,6 +30,18 @@ func IsSupported(code uint8) bool {
 	return false
 }
 
+// VNCAuthIsEnabled returns true if VNCAuth is enabled on the server. This is used to signal
+// the need to generate (or, in the future, read in) the server password.
+func VNCAuthIsEnabled() bool {
+	t := &VNCAuth{}
+	for _, a := range EnabledAuthTypes {
+		if a.Code() == t.Code() {
+			return true
+		}
+	}
+	return false
+}
+
 // TightIsEnabled returns true if TightSecurity is enabled. This is used to determine if
 // capabilities being mutated by the user also need to be updated here.
 func TightIsEnabled() bool {

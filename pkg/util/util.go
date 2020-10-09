@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math/rand"
 	"reflect"
+	"time"
 )
 
 // PackStruct will reflect over the given pointer and write the fields
@@ -36,4 +38,19 @@ func PackStruct(buf io.Writer, data interface{}) error {
 // Write is a convenience wrapper for using the binary package to write to a buffer.
 func Write(buf io.Writer, v interface{}) error {
 	return binary.Write(buf, binary.BigEndian, v)
+}
+
+const charset = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
+
+// RandomString returns a randomly generated string of the given length.
+func RandomString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }
