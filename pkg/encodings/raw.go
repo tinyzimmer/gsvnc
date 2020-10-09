@@ -82,7 +82,7 @@ func inRange(v uint32, max uint16) uint32 {
 	case 0x1f: // 5 bits
 		return v >> (16 - 5)
 	case 0xff:
-		return v
+		return v >> 8
 	}
 	panic("todo; max value = " + strconv.Itoa(int(max)))
 }
