@@ -1,6 +1,7 @@
 package encodings
 
 import (
+	"encoding/binary"
 	"io"
 	"strconv"
 
@@ -56,19 +57,14 @@ func (t *TightEncoding) HandleBuffer(w io.Writer, f *PixelFormat, buf []byte) {
 }
 
 func computeTightLength(num int) (b []byte) {
+	var out []byte
 	if num < 127 {
-		b = []byte{byte(num)}
+		out = make([]byte, 1)
 	} else if num > 127 && num < 16383 {
-		b = []byte{
-			byte(num | 128),
-			byte(num >> 7),
-		}
+		out = make([]byte, 2)
 	} else if num > 16383 {
-		b = []byte{
-			byte(num | 128),
-			byte(num>>7 | 128),
-			byte(num >> 14),
-		}
+		out = make([]byte, 3)
 	}
-	return
+	binary.PutUvarint(out, uint64(num))
+	return out
 }
