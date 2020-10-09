@@ -103,7 +103,7 @@ func (d *Display) pushImage(imgData []byte) {
 		X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: enc.Code(), // TODO make sure supported
 	})
 
-	enc.HandleBuffer(buf, imgData)
+	enc.HandleBuffer(buf, d.GetPixelFormat(), imgData)
 
 	d.buf.Dispatch(buf.Bytes())
 }

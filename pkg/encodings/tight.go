@@ -44,7 +44,7 @@ func (t *TightEncoding) LinkPipeline(width, height int, pipeline *gst.Pipeline) 
 }
 
 // HandleBuffer handles an image sample.
-func (t *TightEncoding) HandleBuffer(w io.Writer, buf []byte) {
+func (t *TightEncoding) HandleBuffer(w io.Writer, f *PixelFormat, buf []byte) {
 	i, _ := strconv.ParseInt("10010000", 2, 64) // JPEG encoding
 	util.Write(w, uint8(i))
 

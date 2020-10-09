@@ -11,7 +11,7 @@ import (
 // It is meant to be used as an object to be passed to event handlers.
 type Display struct {
 	width, height int
-	pixelFormat   *PixelFormat
+	pixelFormat   *encodings.PixelFormat
 	encodings     []int32
 	currentEnc    encodings.Encoding
 	pipeline      *gst.Pipeline
@@ -21,27 +21,8 @@ type Display struct {
 	queue    chan []byte
 }
 
-// PixelFormat represents the current pixel format for the display.
-// Fields are declared in the order they appear in a SetPixelFormat
-// request.
-type PixelFormat struct {
-	BPP, Depth                      uint8
-	BigEndian, TrueColour           uint8 // flags; 0 or non-zero
-	RedMax, GreenMax, BlueMax       uint16
-	RedShift, GreenShift, BlueShift uint8
-}
-
-// IsScreensThousands returns if the format requested by the OS X "Screens" app's "Thousands" mode.
-func (f *PixelFormat) IsScreensThousands() bool {
-	// Note: Screens asks for Depth 16; RealVNC asks for Depth 15 (which is more accurate)
-	// Accept either. Same format.
-	return f.BPP == 16 && (f.Depth == 16 || f.Depth == 15) && f.TrueColour != 0 &&
-		f.RedMax == 0x1f && f.GreenMax == 0x1f && f.BlueMax == 0x1f &&
-		f.RedShift == 10 && f.GreenShift == 5 && f.BlueShift == 0
-}
-
 // DefaultPixelFormat is the default pixel format used in ServerInit messages.
-var DefaultPixelFormat = &PixelFormat{
+var DefaultPixelFormat = &encodings.PixelFormat{
 	BPP:        16,
 	Depth:      16,
 	BigEndian:  0,
@@ -79,10 +60,10 @@ func (d *Display) SetDimensions(width, height int) {
 }
 
 // GetPixelFormat returns the current pixel format for the display.
-func (d *Display) GetPixelFormat() *PixelFormat { return d.pixelFormat }
+func (d *Display) GetPixelFormat() *encodings.PixelFormat { return d.pixelFormat }
 
 // SetPixelFormat sets the pixel format for the display.
-func (d *Display) SetPixelFormat(pf *PixelFormat) { d.pixelFormat = pf }
+func (d *Display) SetPixelFormat(pf *encodings.PixelFormat) { d.pixelFormat = pf }
 
 // GetEncodings returns the encodings currently supported by the client
 // connected to this display.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/encodings"
 )
 
 // SetPixelFormat handles the client set-pixel-format event.
@@ -21,7 +22,7 @@ func (s *SetPixelFormat) Handle(buf *buffer.ReadWriter, d *display.Display) erro
 		return err
 	}
 
-	var pf display.PixelFormat
+	var pf encodings.PixelFormat
 	if err := buf.ReadInto(&pf); err != nil {
 		return err
 	}
