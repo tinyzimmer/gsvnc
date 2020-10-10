@@ -8,4 +8,5 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/tinyzimmer/go-gst v0.1.1
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5
+	golang.org/x/net v0.0.0-20201002202402-0a1ea396d57c
 )

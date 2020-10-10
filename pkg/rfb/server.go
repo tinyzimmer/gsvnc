@@ -2,7 +2,11 @@ package rfb
 
 import (
 	"net"
+	"net/http"
 	"reflect"
+	"time"
+
+	"golang.org/x/net/websocket"
 
 	"github.com/tinyzimmer/gsvnc/pkg/display/providers"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
@@ -75,6 +79,34 @@ func (s *Server) Serve(ln net.Listener) error {
 		// handle events
 		go conn.serve()
 	}
+}
+
+// ServeWebsockify will serve websockify connections on the given host and port.
+func (s *Server) ServeWebsockify(ln net.Listener) error {
+	srvr := &http.Server{
+		Addr:        ln.Addr().String(),
+		ReadTimeout: time.Second * 300, WriteTimeout: time.Second * 300,
+		Handler: &websocket.Server{
+			Handshake: func(cfg *websocket.Config, r *http.Request) error { return nil },
+			Handler: func(wsconn *websocket.Conn) {
+				log.Info("New websocket client connection from ", wsconn.Request().RemoteAddr)
+				wsconn.PayloadType = websocket.BinaryFrame
+				// Create a new client connection
+				conn := s.newConn(wsconn)
+
+				// Do the rfb handshake
+				if err := conn.doHandshake(); err != nil {
+					log.Error("Error during server-client handshake: ", err.Error())
+					conn.c.Close()
+					return
+				}
+
+				// handle events
+				conn.serve()
+			},
+		},
+	}
+	return srvr.Serve(ln)
 }
 
 // AuthIsSupported returns true if the given auth type is supported.

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -30,6 +31,10 @@ var bindPort int32
 var initialResolution string
 var listFeatures bool
 var displayProvider string
+var websockify bool
+var websockifyHost string
+var websockifyPort int32
+var noTCP bool
 
 // RootCmd is the exported root cmd for the gsvnc server.
 var RootCmd = &cobra.Command{
@@ -61,12 +66,18 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&initialResolution, "resolution", "r", "", "The initial resolution to set for display connections. Defaults to auto-detect.")
 	RootCmd.PersistentFlags().BoolVarP(&listFeatures, "list-features", "l", false, "List the available features and exit.")
 	RootCmd.PersistentFlags().StringVarP(&displayProvider, "display", "D", providers.ProviderGstreamer, "The display provider to use for RFB connections.")
+	RootCmd.PersistentFlags().BoolVarP(&websockify, "websockify", "w", false, "Start a websockify listener")
+	RootCmd.PersistentFlags().StringVarP(&websockifyHost, "websockify-host", "W", "127.0.0.1", "The host address to bind the websockify server to.")
+	RootCmd.PersistentFlags().Int32VarP(&websockifyPort, "websockify-port", "P", 8080, "The port to bind the websockify server to.")
+	RootCmd.PersistentFlags().BoolVarP(&noTCP, "no-tcp", "T", false, "Disable the TCP listener. Only makes sense with --websockify.")
 	RootCmd.PersistentFlags().BoolVarP(&config.Debug, "debug", "d", false, "Enable debug logging.")
 }
 
 func run(cmd *cobra.Command, args []string) error {
 
-	if err := configureFeatures(args); err != nil {
+	var err error
+
+	if err = configureFeatures(args); err != nil {
 		return err
 	}
 
@@ -82,14 +93,6 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Display provider is invalid: %s", displayProvider)
 	}
 	log.Info("Using display provider: ", displayProvider)
-
-	bindAddr := fmt.Sprintf("%s:%d", bindHost, bindPort)
-
-	// Create a listener
-	l, err := net.Listen("tcp", bindAddr)
-	if err != nil {
-		return err
-	}
 
 	var w, h int
 
@@ -139,10 +142,37 @@ func run(cmd *cobra.Command, args []string) error {
 		Width: w, Height: h, DisplayProvider: providers.Provider(displayProvider),
 	})
 
-	// Start the server
-	log.Info("Listening for rfb connections on ", bindAddr)
+	if noTCP && !websockify {
+		return errors.New("No listeners configured")
+	}
 
+	if noTCP && websockify {
+		// We are only doing websockify
+		return serveWebsockify(server)
+	}
+
+	if websockify {
+		go serveWebsockify(server)
+	}
+
+	// Create a listener
+	bindAddr := fmt.Sprintf("%s:%d", bindHost, bindPort)
+	l, err := net.Listen("tcp", bindAddr)
+	if err != nil {
+		return err
+	}
+	log.Info("Listening for rfb connections on ", bindAddr)
 	return server.Serve(l)
+}
+
+func serveWebsockify(srvr *rfb.Server) error {
+	wsAddr := fmt.Sprintf("%s:%d", websockifyHost, websockifyPort)
+	l, err := net.Listen("tcp", wsAddr)
+	if err != nil {
+		return err
+	}
+	log.Info("Listening for websockify connections on ", wsAddr)
+	return srvr.ServeWebsockify(l)
 }
 
 func doListFeatures() {
