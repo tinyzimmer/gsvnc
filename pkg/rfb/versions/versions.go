@@ -3,8 +3,8 @@ package versions
 import (
 	"fmt"
 
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/log"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 )
 
 // Protocol version strings. We don't support V3.

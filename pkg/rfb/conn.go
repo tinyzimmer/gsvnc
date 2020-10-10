@@ -4,14 +4,15 @@ import (
 	"log"
 	"net"
 
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/display"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
 )
 
 // Conn represents a client connection.
 type Conn struct {
 	c       net.Conn
+	s       *Server
 	buf     *buffer.ReadWriter
 	display *display.Display
 }
@@ -20,8 +21,9 @@ func (s *Server) newConn(c net.Conn) *Conn {
 	buf := buffer.NewReadWriteBuffer(c)
 	conn := &Conn{
 		c:       c,
+		s:       s,
 		buf:     buf,
-		display: display.NewDisplay(s.width, s.height, buf),
+		display: display.NewDisplay(s.width, s.height, buf, s.GetEncoding),
 	}
 	return conn
 }
@@ -36,7 +38,7 @@ func (c *Conn) serve() {
 	defer c.display.Close()
 
 	// Get a map of event handlers for this connection
-	eventHandlers := events.GetEventHandlerMap()
+	eventHandlers := c.s.GetEventHandlerMap()
 	defer events.CloseEventHandlers(eventHandlers)
 
 	// handle events

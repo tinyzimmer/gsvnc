@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/util"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
 )
 
 // Capability represents a TightSecurity capability.

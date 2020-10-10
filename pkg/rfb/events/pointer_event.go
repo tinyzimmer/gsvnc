@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/display"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 

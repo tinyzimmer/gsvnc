@@ -6,11 +6,11 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/log"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/auth"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/versions"
-	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
 
 func (c *Conn) doHandshake() error {
@@ -21,7 +21,7 @@ func (c *Conn) doHandshake() error {
 	}
 
 	var authType auth.Type
-	if authType, err = negotiateAuth(ver, c.buf); err != nil {
+	if authType, err = c.negotiateAuth(ver, c.buf); err != nil {
 		return err
 	}
 
@@ -64,8 +64,7 @@ const (
 
 // NegotiateAuth wil negotiate authentication on the given connection, for the
 // given version.
-func negotiateAuth(ver string, rw *buffer.ReadWriter) (auth.Type, error) {
-	var authType auth.Type
+func (c *Conn) negotiateAuth(ver string, rw *buffer.ReadWriter) (auth.Type, error) {
 	buf := new(bytes.Buffer)
 
 	log.Info("Negotiating security")
@@ -79,11 +78,11 @@ func negotiateAuth(ver string, rw *buffer.ReadWriter) (auth.Type, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !auth.IsSupported(wanted) {
+	if !c.s.AuthIsSupported(wanted) {
 		return nil, fmt.Errorf("client wanted unsupported auth type %d", int(wanted))
 	}
 
-	authType = auth.GetAuth(wanted)
+	authType := c.s.GetAuth(wanted)
 	log.Info("Using security: ", reflect.TypeOf(authType).Elem().Name())
 
 	if err := authType.Negotiate(rw); err != nil {

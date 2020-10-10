@@ -3,7 +3,7 @@ package auth
 import (
 	"reflect"
 
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
 )
 
 // Type represents an authentication type.
@@ -18,6 +18,15 @@ var EnabledAuthTypes = []Type{
 	&None{},
 	&VNCAuth{},
 	&TightSecurity{},
+}
+
+// GetDefaults returns a slice of the default auth handlers.
+func GetDefaults() []Type {
+	out := make([]Type, len(EnabledAuthTypes))
+	for i, t := range EnabledAuthTypes {
+		out[i] = t
+	}
+	return out
 }
 
 // IsSupported returns true if the given auth type is supported.
@@ -98,6 +107,3 @@ func GetAuth(code uint8) Type {
 	}
 	return nil
 }
-
-// GetNone is a convenience wrapper for retrieving the noauth handler.
-func GetNone() Type { return &None{} }

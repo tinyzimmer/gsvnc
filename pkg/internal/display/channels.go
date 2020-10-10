@@ -1,6 +1,6 @@
 package display
 
-import "github.com/tinyzimmer/gsvnc/pkg/log"
+import "github.com/tinyzimmer/gsvnc/pkg/internal/log"
 
 func (d *Display) handleKeyEvents() {
 	for {

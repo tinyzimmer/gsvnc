@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/display"
 )
 
 // Event is an inteface implemented by client message handlers.
@@ -20,6 +20,15 @@ var EnabledEvents = []Event{
 	&PointerEvent{},
 }
 
+// GetDefaults returns a slice of the default event handlers.
+func GetDefaults() []Event {
+	out := make([]Event, len(EnabledEvents))
+	for i, t := range EnabledEvents {
+		out[i] = t
+	}
+	return out
+}
+
 // DisableEvent removes the given event from the list of EnabledEvents.
 func DisableEvent(ev Event) {
 	EnabledEvents = remove(EnabledEvents, ev)
@@ -33,16 +42,6 @@ func remove(ee []Event, e Event) []Event {
 		}
 	}
 	return newEvs
-}
-
-// GetEventHandlerMap returns a map that can be used for handling events on an
-// rfb connection.
-func GetEventHandlerMap() map[uint8]Event {
-	out := make(map[uint8]Event)
-	for _, ev := range EnabledEvents {
-		out[ev.Code()] = ev
-	}
-	return out
 }
 
 // CloseEventHandlers will iterate each event handler in the map and if it provides a Close

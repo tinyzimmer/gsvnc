@@ -12,7 +12,7 @@ import (
 
 	"github.com/tinyzimmer/go-gst/gst"
 
-	"github.com/tinyzimmer/gsvnc/pkg/log"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 )
 
 func logPipelineErr(err error) {

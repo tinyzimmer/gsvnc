@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"image"
 
-	"github.com/tinyzimmer/gsvnc/pkg/log"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
-	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
 
 // Server -> Client

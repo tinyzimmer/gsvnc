@@ -24,18 +24,13 @@ var EnabledEncodings = []Encoding{
 	&TightEncoding{},
 }
 
-// GetEncoding will iterate the requested encodings and return the best match
-// that can be served. If none of the requested encodings are supported (should
-// never happen as at least RAW is required by RFC) this function returns nil.
-func GetEncoding(encs []int32) Encoding {
-	for _, e := range encs {
-		for _, supported := range EnabledEncodings {
-			if e == supported.Code() {
-				return supported
-			}
-		}
+// GetDefaults returns a slice of the default encoding handlers.
+func GetDefaults() []Encoding {
+	out := make([]Encoding, len(EnabledEncodings))
+	for i, t := range EnabledEncodings {
+		out[i] = t
 	}
-	return nil
+	return out
 }
 
 // DisableEncoding removes the given encoding from the list of EnabledEncodings.

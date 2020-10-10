@@ -4,19 +4,21 @@ import (
 	"image"
 
 	"github.com/tinyzimmer/go-gst/gst"
-	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/encodings"
+
+	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/encodings"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 
 // Display represents a session with the local display. It manages the gstreamer pipelines
 // and listens for events from the RFB event handlers.
 type Display struct {
-	width, height int
-	pixelFormat   *types.PixelFormat
-	encodings     []int32
-	currentEnc    encodings.Encoding
-	pipeline      *gst.Pipeline
+	width, height    int
+	pixelFormat      *types.PixelFormat
+	getEncodingsFunc GetEncodingsFunc
+	encodings        []int32
+	currentEnc       encodings.Encoding
+	pipeline         *gst.Pipeline
 
 	// Read/writer for the connected client
 	buf *buffer.ReadWriter
@@ -50,14 +52,19 @@ var DefaultPixelFormat = &types.PixelFormat{
 	BlueShift:  0,
 }
 
+// GetEncodingsFunc is a function that can be used to retrieve an encoder
+// from a list of client supplied options.
+type GetEncodingsFunc func(encs []int32) encodings.Encoding
+
 // NewDisplay returns a new display with the given dimensions. These
 // dimensions can be mutated later on depending on client support.
-func NewDisplay(width, height int, buf *buffer.ReadWriter) *Display {
+func NewDisplay(width, height int, buf *buffer.ReadWriter, f GetEncodingsFunc) *Display {
 	display := &Display{
-		width:       width,
-		height:      height,
-		buf:         buf,
-		pixelFormat: DefaultPixelFormat,
+		width:            width,
+		height:           height,
+		buf:              buf,
+		getEncodingsFunc: f,
+		pixelFormat:      DefaultPixelFormat,
 		// Buffered channels
 		fbReqQueue: make(chan *types.FrameBufferUpdateRequest, 128),
 		ptrEvQueue: make(chan *types.PointerEvent, 128),
@@ -95,7 +102,7 @@ func (d *Display) GetEncodings() []int32 { return d.encodings }
 // SetEncodings sets the encodings that the connected client supports.
 func (d *Display) SetEncodings(encs []int32) {
 	d.encodings = encs
-	d.currentEnc = encodings.GetEncoding(encs)
+	d.currentEnc = d.getEncodingsFunc(encs)
 }
 
 // GetCurrentEncoding returns the encoder that is currently being used.
