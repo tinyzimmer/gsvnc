@@ -4,21 +4,39 @@ import (
 	"net"
 	"reflect"
 
+	"github.com/tinyzimmer/gsvnc/pkg/display/providers"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/auth"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/encodings"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
 )
 
+// ServerOpts represents options that can be used to configure a new RFB server.
+type ServerOpts struct {
+	DisplayProvider  providers.Provider
+	Width, Height    int
+	EnabledEncodings []encodings.Encoding
+	EnabledAuthTypes []auth.Type
+	EnabledEvents    []events.Event
+}
+
 // NewServer creates a new RFB server with an initial width and height.
-func NewServer(width, height int) *Server {
-	return &Server{
-		width:            width,
-		height:           height,
-		enabledEncodings: encodings.GetDefaults(),
-		enabledAuthTypes: auth.GetDefaults(),
-		enabledEvents:    events.GetDefaults(),
+func NewServer(opts *ServerOpts) *Server {
+	server := &Server{
+		displayProvider: opts.DisplayProvider,
+		width:           opts.Width,
+		height:          opts.Height,
 	}
+	if len(opts.EnabledEncodings) == 0 {
+		server.enabledEncodings = encodings.GetDefaults()
+	}
+	if len(opts.EnabledAuthTypes) == 0 {
+		server.enabledAuthTypes = auth.GetDefaults()
+	}
+	if len(opts.EnabledEvents) == 0 {
+		server.enabledEvents = events.GetDefaults()
+	}
+	return server
 }
 
 // Server represents an RFB server. A channel is exposed for handling incoming client
@@ -26,6 +44,7 @@ func NewServer(width, height int) *Server {
 type Server struct {
 	width, height int
 
+	displayProvider  providers.Provider
 	enabledEncodings []encodings.Encoding
 	enabledAuthTypes []auth.Type
 	enabledEvents    []events.Event

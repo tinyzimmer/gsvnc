@@ -3,7 +3,7 @@ package versions
 import (
 	"fmt"
 
-	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 )
 

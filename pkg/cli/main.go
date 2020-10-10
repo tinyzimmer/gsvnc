@@ -16,6 +16,7 @@ import (
 	"github.com/tinyzimmer/go-gst/gst"
 
 	"github.com/tinyzimmer/gsvnc/pkg/config"
+	"github.com/tinyzimmer/gsvnc/pkg/display/providers"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb"
@@ -28,6 +29,7 @@ var bindHost string
 var bindPort int32
 var initialResolution string
 var listFeatures bool
+var displayProvider string
 
 // RootCmd is the exported root cmd for the gsvnc server.
 var RootCmd = &cobra.Command{
@@ -58,6 +60,7 @@ func init() {
 	RootCmd.PersistentFlags().Int32VarP(&bindPort, "port", "p", 5900, "The port to bind the server to.")
 	RootCmd.PersistentFlags().StringVarP(&initialResolution, "resolution", "r", "", "The initial resolution to set for display connections. Defaults to auto-detect.")
 	RootCmd.PersistentFlags().BoolVarP(&listFeatures, "list-features", "l", false, "List the available features and exit.")
+	RootCmd.PersistentFlags().StringVarP(&displayProvider, "display", "D", providers.ProviderGstreamer, "The display provider to use for RFB connections.")
 	RootCmd.PersistentFlags().BoolVarP(&config.Debug, "debug", "d", false, "Enable debug logging.")
 }
 
@@ -73,6 +76,12 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Info("Starting gsvnc")
+
+	// Make sure the configured display provider is valid.
+	if p := providers.GetDisplayProvider(providers.Provider(displayProvider)); p == nil {
+		return fmt.Errorf("Display provider is invalid: %s", displayProvider)
+	}
+	log.Info("Using display provider: ", displayProvider)
 
 	bindAddr := fmt.Sprintf("%s:%d", bindHost, bindPort)
 
@@ -126,7 +135,9 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create a new rfb server
-	server := rfb.NewServer(w, h)
+	server := rfb.NewServer(&rfb.ServerOpts{
+		Width: w, Height: h, DisplayProvider: providers.Provider(displayProvider),
+	})
 
 	// Start the server
 	log.Info("Listening for rfb connections on ", bindAddr)

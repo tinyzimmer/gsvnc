@@ -3,7 +3,7 @@ package auth
 import (
 	"reflect"
 
-	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 )
 
 // Type represents an authentication type.

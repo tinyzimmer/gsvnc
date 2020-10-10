@@ -1,6 +1,10 @@
 package display
 
-import "github.com/tinyzimmer/gsvnc/pkg/internal/log"
+import (
+	"time"
+
+	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
+)
 
 func (d *Display) handleKeyEvents() {
 	for {
@@ -30,12 +34,13 @@ func (d *Display) handlePointerEvents() {
 				return
 			}
 			log.Debug("Got pointer event: ", ev)
-
+			d.servePointerEvent(ev)
 		}
 	}
 }
 
 func (d *Display) handleFrameBufferEvents() {
+	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
 		// Framebuffer update requests
@@ -48,7 +53,7 @@ func (d *Display) handleFrameBufferEvents() {
 			d.pushFrame(ur)
 
 		// Send a frame update anyway if there are no updates on the queue
-		default:
+		case <-ticker.C:
 			log.Debug("Pushing latest frame to client")
 			last := d.GetLastImage()
 			d.pushImage(last)

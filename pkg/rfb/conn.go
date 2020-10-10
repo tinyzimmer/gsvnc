@@ -4,8 +4,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/internal/display"
+	"github.com/tinyzimmer/gsvnc/pkg/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/display"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
 )
 
@@ -20,10 +20,16 @@ type Conn struct {
 func (s *Server) newConn(c net.Conn) *Conn {
 	buf := buffer.NewReadWriteBuffer(c)
 	conn := &Conn{
-		c:       c,
-		s:       s,
-		buf:     buf,
-		display: display.NewDisplay(s.width, s.height, buf, s.GetEncoding),
+		c:   c,
+		s:   s,
+		buf: buf,
+		display: display.NewDisplay(&display.Opts{
+			Width:           s.width,
+			Height:          s.height,
+			Buffer:          buf,
+			DisplayProvider: s.displayProvider,
+			GetEncodingFunc: s.GetEncoding,
+		}),
 	}
 	return conn
 }

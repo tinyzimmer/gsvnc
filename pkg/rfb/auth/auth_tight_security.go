@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
 )
 

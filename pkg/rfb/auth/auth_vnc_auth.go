@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"errors"
 
+	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/config"
-	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
 )
 
 // VNCAuth represents VNCAuthentication.

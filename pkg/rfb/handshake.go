@@ -6,7 +6,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/tinyzimmer/gsvnc/pkg/internal/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/auth"
