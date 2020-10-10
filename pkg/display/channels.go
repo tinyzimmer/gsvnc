@@ -1,48 +1,61 @@
 package display
 
-import (
-	"time"
-)
+import "github.com/tinyzimmer/gsvnc/pkg/log"
 
-func (d *Display) watchChannels() {
-	ticker := time.NewTicker(time.Millisecond * 100)
-
+func (d *Display) handleKeyEvents() {
 	for {
 		select {
-
-		// Framebuffer update requests
-		case ur, ok := <-d.fbReqQueue:
-			if !ok {
-				// Client disconnected.
-				return
-			}
-			d.pushFrame(ur)
-
-		// Key events
 		case ev, ok := <-d.keyEvQueue:
 			if !ok {
 				// Client disconnected.
 				return
 			}
+			log.Debug("Got key event: ", ev)
 			if ev.IsDown() {
 				d.appendDownKeyIfMissing(ev.Key)
 				d.dispatchDownKeys()
 			} else {
 				d.removeDownKey(ev.Key)
 			}
+		}
+	}
+}
 
-		// Pointer events
-		case _, ok := <-d.ptrEvQueue:
+func (d *Display) handlePointerEvents() {
+	for {
+		select { // Pointer events
+		case ev, ok := <-d.ptrEvQueue:
 			if !ok {
 				// Client disconnected.
 				return
 			}
+			log.Debug("Got pointer event: ", ev)
 
-		// Send a frame update every 100 msec if there are no other events
-		// to serve
-		case <-ticker.C:
-			last := d.GetLastImage()
-			d.pushImage(last)
+		}
+	}
+}
+
+func (d *Display) watchChannels() {
+	go d.handleKeyEvents()
+	go d.handlePointerEvents()
+
+	for {
+		select {
+		// Framebuffer update requests
+		case ur, ok := <-d.fbReqQueue:
+			if !ok {
+				// Client disconnected.
+				return
+			}
+			log.Debug("Handling framebuffer update request")
+			d.pushFrame(ur)
+
+			// // Send a frame update anyway if there no
+			// // updates on the queue
+			// default:
+			// 	log.Debug("Pushing latest frame to client")
+			// 	last := d.GetLastImage()
+			// 	d.pushImage(last)
 		}
 	}
 }

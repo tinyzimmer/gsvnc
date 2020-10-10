@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"reflect"
@@ -11,19 +10,18 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
-
-	"github.com/tinyzimmer/gsvnc/pkg/config"
-
-	"github.com/tinyzimmer/gsvnc/pkg/util"
-
 	"github.com/go-vgo/robotgo"
 	"github.com/spf13/cobra"
 
 	"github.com/tinyzimmer/go-gst/gst"
+
+	"github.com/tinyzimmer/gsvnc/pkg/config"
 	"github.com/tinyzimmer/gsvnc/pkg/encodings"
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/auth"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
+	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
 
 var bindHost string
@@ -59,6 +57,7 @@ func init() {
 	rootCmd.PersistentFlags().Int32VarP(&bindPort, "port", "p", 5900, "The port to bind the server to.")
 	rootCmd.PersistentFlags().StringVarP(&initialResolution, "resolution", "r", "", "The initial resolution to set for display connections. Defaults to auto-detect.")
 	rootCmd.PersistentFlags().BoolVarP(&listFeatures, "list-features", "l", false, "List the available features and exit.")
+	rootCmd.PersistentFlags().BoolVarP(&config.Debug, "debug", "d", false, "Enable debug logging.")
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -72,7 +71,7 @@ func run(cmd *cobra.Command, args []string) error {
 		os.Exit(0)
 	}
 
-	log.Println("Starting gsvnc")
+	log.Info("Starting gsvnc")
 
 	bindAddr := fmt.Sprintf("%s:%d", bindHost, bindPort)
 
@@ -86,7 +85,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 	if initialResolution == "" {
 		w, h = robotgo.GetScreenSize()
-		log.Printf("Detected initial screen resolution of %dx%d", w, h)
+		log.Infof("Detected initial screen resolution of %dx%d", w, h)
 	} else {
 		spl := strings.Split(strings.ToLower(initialResolution), "x")
 		if len(spl) != 2 {
@@ -100,7 +99,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("Could not parse '%s' as an integer", spl[1])
 		}
-		log.Printf("Using initial screen resolution of %dx%d", w, h)
+		log.Infof("Using initial screen resolution of %dx%d", w, h)
 	}
 
 	var enabledAuths, enabledEncs, enabledEvents []string
@@ -114,22 +113,22 @@ func run(cmd *cobra.Command, args []string) error {
 		enabledEvents = append(enabledEvents, reflect.TypeOf(ev).Elem().Name())
 	}
 
-	log.Println("Enabled security types:", enabledAuths)
-	log.Println("Enabled encodings:", enabledEncs)
-	log.Println("Enabled event handlers:", enabledEvents)
+	log.Info("Enabled security types: ", enabledAuths)
+	log.Info("Enabled encodings: ", enabledEncs)
+	log.Info("Enabled event handlers: ", enabledEvents)
 
 	if auth.VNCAuthIsEnabled() {
-		log.Println("VNCAuth is enabled, generating a server password")
+		log.Info("VNCAuth is enabled, generating a server password")
 		passw := util.RandomString(8)
 		config.VNCAuthPassword = passw
-		log.Println("Clients using VNCAuth can connect with the following password:", passw)
+		log.Info("Clients using VNCAuth can connect with the following password: ", passw)
 	}
 
 	// Create a new rfb server
 	server := rfb.NewServer(w, h)
 
 	// Start the server
-	log.Println("Listening for rfb connections on", bindAddr)
+	log.Info("Listening for rfb connections on ", bindAddr)
 
 	return server.Serve(l)
 }

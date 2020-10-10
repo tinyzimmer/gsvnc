@@ -1,6 +1,8 @@
 package display
 
 import (
+	"image"
+
 	"github.com/tinyzimmer/go-gst/gst"
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/encodings"
@@ -29,7 +31,7 @@ type Display struct {
 	downKeys []uint32
 
 	// contains the incoming samples from the screen
-	frameQueue chan []byte
+	frameQueue chan *image.RGBA
 }
 
 // DefaultPixelFormat is the default pixel format used in ServerInit messages.
@@ -58,7 +60,7 @@ func NewDisplay(width, height int, buf *buffer.ReadWriter) *Display {
 		fbReqQueue: make(chan *types.FrameBufferUpdateRequest, 128),
 		ptrEvQueue: make(chan *types.PointerEvent, 128),
 		keyEvQueue: make(chan *types.KeyEvent, 128),
-		frameQueue: make(chan []byte, 128),
+		frameQueue: make(chan *image.RGBA, 10), // This queue drops messsages if they aren't read in time
 		// down key memory
 		downKeys: make([]uint32, 0),
 	}
@@ -95,7 +97,7 @@ func (d *Display) SetEncodings(encs []int32) {
 func (d *Display) GetCurrentEncoding() encodings.Encoding { return d.currentEnc }
 
 // GetLastImage returns the most recent frame for the display.
-func (d *Display) GetLastImage() []byte { return <-d.frameQueue }
+func (d *Display) GetLastImage() *image.RGBA { return <-d.frameQueue }
 
 // DispatchFrameBufferUpdate dispatches a FrameBufferUpdateRequest on the request queue.
 func (d *Display) DispatchFrameBufferUpdate(req *types.FrameBufferUpdateRequest) { d.fbReqQueue <- req }

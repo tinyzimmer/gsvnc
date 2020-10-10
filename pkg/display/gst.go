@@ -1,17 +1,29 @@
 package display
 
 import (
-	"log"
+	"fmt"
+	"image"
+	"image/jpeg"
 	"runtime"
 	"time"
 
 	"github.com/tinyzimmer/go-gst/gst"
 	"github.com/tinyzimmer/go-gst/gst/app"
-	"github.com/tinyzimmer/gsvnc/pkg/encodings"
+	"github.com/tinyzimmer/go-gst/gst/video"
+
+	"github.com/tinyzimmer/gsvnc/pkg/config"
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 )
+
+func logPipelineErr(err error) {
+	log.Error("[go-gst-error] ", err.Error())
+}
 
 // Start will start the display. It assumes gstreamer has already been initialized.
 func (d *Display) Start() error {
+
+	log.Debug("Building gstreamer pipeline for display connection")
+
 	pipeline, err := gst.NewPipeline("")
 	if err != nil {
 		return err
@@ -23,6 +35,7 @@ func (d *Display) Start() error {
 		return err
 	}
 
+	// Let decodebin decide the best pipelin depending on the source stream
 	decodebin, err := gst.NewElement("decodebin")
 	if err != nil {
 		return err
@@ -30,57 +43,51 @@ func (d *Display) Start() error {
 	pipeline.AddMany(src, decodebin)
 	src.Link(decodebin)
 
+	// Buiild out the rest of the pipeline when decodebin is ready.
 	decodebin.Connect("pad-added", func(self *gst.Element, srcPad *gst.Pad) {
+		log.Debug("Decodebin pad added, linking pipeline")
+		elements, err := gst.NewElementMany("queue", "videorate", "videoscale", "videoconvert", "jpegenc", "appsink")
+		if err != nil {
+			logPipelineErr(err)
+			return
+		}
 
-		// Get the pipeline handler for the encoding we are going to use, looping until it is set.
-		// It's the client job to let us know at some point. We give up after 10 seconds.
-		var enc encodings.Encoding
-		t := time.NewTicker(time.Second * 10)
+		queue, videorate, videoscale, videoconvert, jpegenc, appsink :=
+			elements[0], elements[1], elements[2], elements[3], elements[4], elements[5]
 
-	OuterLoop:
-		for {
-			select {
-			case <-t.C:
-				{
-					return
-				}
-			default:
-				enc = d.GetCurrentEncoding()
-				if enc != nil {
-					break OuterLoop
-				}
+		// Build out caps
+		w, h := d.GetDimensions()
+		rateCaps := gst.NewCapsFromString("video/x-raw, framerate=10/1")
+		scaleCaps := gst.NewCapsFromString(fmt.Sprintf("video/x-raw, width=%d, height=%d", w, h))
+		videoInfo := video.NewInfo().
+			WithFormat(video.FormatRGBx, uint(w), uint(h)).
+			WithFPS(gst.Fraction(10, 1))
+
+		// Configure and link elements
+		if err := runAllUntilError([]func() error{
+			func() error { return videoscale.SetProperty("sharpen", 1) },
+			func() error { return videoscale.SetProperty("method", 0) }, // Use nearest neighbor - significantly cheaper CPU
+			func() error { return pipeline.AddMany(elements...) },
+			func() error { return queue.Link(videorate) },
+			func() error { return videorate.LinkFiltered(videoscale, rateCaps) },
+			func() error { return videoscale.LinkFiltered(videoconvert, scaleCaps) },
+			func() error { return videoconvert.LinkFiltered(jpegenc, videoInfo.ToCaps()) },
+			func() error { return jpegenc.Link(appsink) },
+		}); err != nil {
+			logPipelineErr(err)
+			return
+		}
+
+		log.Debug("Syncing new element states with parent pipeline")
+		for _, e := range elements {
+			if ok := e.SyncStateWithParent(); !ok {
+				logPipelineErr(fmt.Errorf("Could not sink element state with parent: %s", e.Name()))
+				return
 			}
 		}
 
-		w, h := d.GetDimensions()
-
-		// Let the encoding handler build out the rest of the pipeline
-		start, finish, err := enc.LinkPipeline(w, h, pipeline)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		// Don't bother the encoder with state syncing. Query the pipeline and do
-		// it now.
-		elements, err := pipeline.GetElements()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		for _, e := range elements {
-			e.SyncStateWithParent()
-		}
-
-		sink, err := app.NewAppSink()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		pipeline.Add(sink.Element)
-		finish.Link(sink.Element)
-
+		// Connect to new samples on the sink
+		sink := app.SinkFromElement(appsink)
 		sink.SetCallbacks(&app.SinkCallbacks{
 			NewSampleFunc: func(self *app.Sink) gst.FlowReturn {
 				// Pull the sample from the sink
@@ -90,20 +97,60 @@ func (d *Display) Start() error {
 				}
 				defer sample.Unref()
 
-				// Retrieve the pixels from the sample
-				imgBytes := sample.GetBuffer().
-					Map(gst.MapRead).
-					Bytes()
+				log.Debug("Received new frame on the pipeline, decoding")
 
-				d.frameQueue <- imgBytes
+				// Retrieve the pixels from the sample
+				buf := sample.GetBuffer().Reader()
+
+				img, err := jpeg.Decode(buf)
+				if err != nil {
+					logPipelineErr(err)
+					return gst.FlowError
+				}
+
+				log.Debug("Queueing frame for processing")
+				// Queue the image for processing
+				var ok bool
+				select {
+				case d.frameQueue <- img.(*image.RGBA):
+					ok = true
+				default:
+					ok = false
+					// pop the oldest item off the queue
+					// and let the next sample try to get in
+					select {
+					case <-d.frameQueue:
+					}
+				}
+
+				if !ok {
+					log.Warning("Client is behind on frames, could not push to channel")
+				} else {
+					log.Debug("Successfully queued frame for processing")
+				}
+
 				return gst.FlowOK
 			},
 		})
 
-		if ret := srcPad.Link(start.GetStaticPad("sink")); ret != gst.PadLinkOK {
-			log.Println("Could not link src pad to pipeline")
+		if ret := srcPad.Link(queue.GetStaticPad("sink")); ret != gst.PadLinkOK {
+			log.Error("Could not link src pad to pipeline")
 		}
 	})
+
+	if config.Debug {
+		bus := pipeline.GetPipelineBus()
+		go func() {
+			for {
+				msg := bus.TimedPop(time.Duration(-1))
+				if msg == nil {
+					return
+				}
+				log.Debug(msg)
+				msg.Unref()
+			}
+		}()
+	}
 
 	d.pipeline = pipeline
 	return pipeline.SetState(gst.StatePlaying)
@@ -113,31 +160,50 @@ func (d *Display) getScreenCaptureElement() (elem *gst.Element, err error) {
 	switch runtime.GOOS {
 
 	case "windows":
+		log.Debug("Detected Windows, using gdiscreencapsrc")
 		// Other option is to use directX
 		elem, err = gst.NewElement("gdiscreencapsrc")
 		if err != nil {
 			return
 		}
-		// Defaults are satisfactory for starting
+		err = elem.SetProperty("cursor", true)
 
 	case "darwin":
+		log.Debug("Detected macOS, using avfvideosrc")
 		// I think this is the only option for mac
 		elem, err = gst.NewElement("avfvideosrc")
 		if err != nil {
 			return
 		}
-		elem.SetProperty("capture-screen", true)
+		err = elem.SetProperty("capture-screen", true)
+		if err != nil {
+			return
+		}
+		err = elem.SetProperty("capture-screen-cursor", true)
 
 	default:
+		log.Debug("Detected Linux, using ximagesrc")
 		// For now the default assumes an X display
 		elem, err = gst.NewElement("ximagesrc")
 		if err != nil {
 			return
 		}
-		elem.SetProperty("show-pointer", false)
+		err = elem.SetProperty("show-pointer", true)
+		if err != nil {
+			return
+		}
 		// XDamage will increase CPU usage considerably in some cases
-		elem.SetProperty("use-damage", false)
+		err = elem.SetProperty("use-damage", false)
 
 	}
 	return
+}
+
+func runAllUntilError(fs []func() error) error {
+	for _, f := range fs {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

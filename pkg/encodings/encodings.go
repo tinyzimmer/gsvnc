@@ -1,10 +1,10 @@
 package encodings
 
 import (
+	"image"
 	"io"
 	"reflect"
 
-	"github.com/tinyzimmer/go-gst/gst"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 
@@ -12,17 +12,9 @@ import (
 type Encoding interface {
 	// Code should return the int32 code of the encoding type.
 	Code() int32
-	// LinkPipeline should build out the elements the encoding needs into the
-	// given pipeline. The buffers produced by the pipeline will be passed to
-	// the HandleBuffer handler.
-	//
-	// The returned element must be the element that can be linked to the source
-	// and sink on the pipeline. This (as well as syncting state with parent) is handled
-	// externally to this function.
-	LinkPipeline(width, height int, pipeline *gst.Pipeline) (start, end *gst.Element, err error)
-	// HandleBuffer should craft a rectangle from the given byte sequence and
+	// HandleBuffer should craft a rectangle from the given image and
 	// queue it onto the given writer.
-	HandleBuffer(w io.Writer, format *types.PixelFormat, buf []byte)
+	HandleBuffer(w io.Writer, format *types.PixelFormat, img *image.RGBA)
 }
 
 // EnabledEncodings lists the encodings currently enabled by the server. It can be mutated

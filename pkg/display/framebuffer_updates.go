@@ -2,8 +2,9 @@ package display
 
 import (
 	"bytes"
-	"log"
+	"image"
 
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
@@ -21,35 +22,17 @@ func (d *Display) pushFrame(ur *types.FrameBufferUpdateRequest) {
 		return
 	}
 
-	// if ur.Incremental() {
-	// 	width, height := d.GetDimensions()
-	// 	buf := new(bytes.Buffer)
+	if ur.Incremental() {
+		li = truncateImage(ur, li)
+	}
 
-	// 	// log.Printf("Client wants incremental update, sending none. %#v", ur)
-
-	// 	util.Write(buf, uint8(cmdFramebufferUpdate))
-	// 	// padding byte
-	// 	util.Write(buf, uint8(0))
-	// 	// num rectangles
-	// 	util.Write(buf, uint16(1))
-
-	// 	util.PackStruct(buf, &types.FrameBufferRectangle{
-	// 		X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: encodingCopyRect, // TODO make sure supported
-	// 	})
-
-	// 	util.Write(buf, uint16(0)) // src-x
-	// 	util.Write(buf, uint16(0)) // src-y
-
-	// 	d.buf.Dispatch(buf.Bytes())
-	// 	return
-	// }
-
+	log.Debug("Pushing latest frame to client")
 	d.pushImage(li)
 }
 
-func (d *Display) pushImage(imgData []byte) {
+func (d *Display) pushImage(img *image.RGBA) {
 
-	width, height := d.GetDimensions()
+	b := img.Bounds()
 
 	buf := new(bytes.Buffer)
 
@@ -60,7 +43,7 @@ func (d *Display) pushImage(imgData []byte) {
 	//log.Printf("sending %d x %d pixels", width, height)
 	format := d.GetPixelFormat()
 	if format.TrueColour == 0 {
-		log.Println("only true-colour supported")
+		log.Error("only true-colour supported")
 		return
 	}
 
@@ -68,10 +51,26 @@ func (d *Display) pushImage(imgData []byte) {
 
 	// Send that rectangle:
 	util.PackStruct(buf, &types.FrameBufferRectangle{
-		X: 0, Y: 0, Width: uint16(width), Height: uint16(height), EncType: enc.Code(), // TODO make sure supported
+		X: uint16(b.Min.X), Y: uint16(b.Min.Y), Width: uint16(b.Max.X - b.Min.X), Height: uint16(b.Max.Y - b.Min.Y), EncType: enc.Code(), // TODO make sure supported
 	})
 
-	enc.HandleBuffer(buf, d.GetPixelFormat(), imgData)
+	enc.HandleBuffer(buf, d.GetPixelFormat(), img)
 
 	d.buf.Dispatch(buf.Bytes())
+}
+
+func truncateImage(ur *types.FrameBufferUpdateRequest, img *image.RGBA) *image.RGBA {
+	truncated := image.NewRGBA(
+		image.Rect(
+			int(ur.X), int(ur.Y), int(ur.Width), int(ur.Height),
+		),
+	)
+
+	for y := ur.Y; y < ur.Height; y++ {
+		for x := ur.X; x < ur.Width; x++ {
+			truncated.Set(int(x), int(y), img.At(int(x), int(y)))
+		}
+	}
+
+	return truncated
 }
