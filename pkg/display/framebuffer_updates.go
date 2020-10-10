@@ -3,28 +3,10 @@ package display
 import (
 	"bytes"
 	"log"
-	"time"
 
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
-
-func (d *Display) pushFramesLoop() {
-	ticker := time.NewTicker(time.Millisecond * 100)
-	for {
-		select {
-		case ur, ok := <-d.fbReqQueue:
-			if !ok {
-				// Client disconnected.
-				return
-			}
-			d.pushFrame(ur)
-		case <-ticker.C:
-			last := d.GetLastImage()
-			d.pushImage(last)
-		}
-	}
-}
 
 // Server -> Client
 const (

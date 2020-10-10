@@ -62,9 +62,7 @@ func NewDisplay(width, height int, buf *buffer.ReadWriter) *Display {
 		// down key memory
 		downKeys: make([]uint32, 0),
 	}
-	go display.pushFramesLoop()
-	go display.handleKeyEventsLoop()
-	go display.handlePtrEventsLoop()
+	go display.watchChannels()
 	return display
 }
 

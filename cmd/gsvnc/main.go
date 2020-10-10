@@ -147,17 +147,28 @@ func doListFeatures() {
 		0,   // flags
 	)
 
+	w.Write([]byte("\nThe following features are available\n\n"))
+
+	lformat := "%s\t(enabled)\n"
+
 	fmt.Fprintln(w, "Security Types")
 	fmt.Fprintln(w, "--------------")
 	for _, sec := range auth.EnabledAuthTypes {
-		fmt.Fprintf(w, "%s\t(enabled)\n", reflect.TypeOf(sec).Elem().Name())
+		fmt.Fprintf(w, lformat, reflect.TypeOf(sec).Elem().Name())
 	}
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Encodings")
 	fmt.Fprintln(w, "---------")
 	for _, enc := range encodings.EnabledEncodings {
-		fmt.Fprintf(w, "%s\t(enabled)\n", reflect.TypeOf(enc).Elem().Name())
+		fmt.Fprintf(w, lformat, reflect.TypeOf(enc).Elem().Name())
 	}
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Events")
+	fmt.Fprintln(w, "------")
+	for _, ev := range events.EnabledEvents {
+		fmt.Fprintf(w, lformat, reflect.TypeOf(ev).Elem().Name())
+	}
+
 	w.Flush()
 	fmt.Println(buf.String())
 }

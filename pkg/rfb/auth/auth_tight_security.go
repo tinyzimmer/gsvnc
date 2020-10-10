@@ -9,6 +9,36 @@ import (
 	"github.com/tinyzimmer/gsvnc/pkg/util"
 )
 
+// Capability represents a TightSecurity capability.
+type Capability struct {
+	Code              int32
+	Vendor, Signature string
+}
+
+// TightTunnelCapabilities represents TightSecurity tunnel capabilities.
+var TightTunnelCapabilities = []Capability{
+	{Code: 0, Vendor: "TGHT", Signature: "NOTUNNEL"},
+}
+
+// TightAuthCapabilities represents TightSecurity auth capabilities.
+var TightAuthCapabilities = []Capability{
+	{Code: 1, Vendor: "STDV", Signature: "NOAUTH__"},
+	{Code: 2, Vendor: "STDV", Signature: "VNCAUTH_"},
+}
+
+// TightServerMessages represents supported tight server messages.
+var TightServerMessages = []Capability{}
+
+// TightClientMessages represents supported tight client messages.
+var TightClientMessages = []Capability{}
+
+// TightEncodingCapabilities represents TightSecurity encoding capabilities.
+var TightEncodingCapabilities = []Capability{
+	{Code: 0, Vendor: "STDV", Signature: "RAW_____"},
+	{Code: 1, Vendor: "STDV", Signature: "COPYRECT"},
+	{Code: 7, Vendor: "TGHT", Signature: "TIGHT___"},
+}
+
 // TightSecurity implements Tight security.
 // https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#tight-security-type
 type TightSecurity struct{}
@@ -40,36 +70,6 @@ func (t *TightSecurity) ExtendServerInit(buf io.Writer) {
 	for _, cap := range TightEncodingCapabilities {
 		util.PackStruct(buf, &cap)
 	}
-}
-
-// Capability represents a TightSecurity capability.
-type Capability struct {
-	Code              int32
-	Vendor, Signature string
-}
-
-// TightTunnelCapabilities represents TightSecurity tunnel capabilities.
-var TightTunnelCapabilities = []Capability{
-	{Code: 0, Vendor: "TGHT", Signature: "NOTUNNEL"},
-}
-
-// TightAuthCapabilities represents TightSecurity auth capabilities.
-var TightAuthCapabilities = []Capability{
-	{Code: 1, Vendor: "STDV", Signature: "NOAUTH__"},
-	{Code: 2, Vendor: "STDV", Signature: "VNCAUTH_"},
-}
-
-// TightServerMessages represents supported tight server messages.
-var TightServerMessages = []Capability{}
-
-// TightClientMessages represents supported tight client messages.
-var TightClientMessages = []Capability{}
-
-// TightEncodingCapabilities represents TightSecurity encoding capabilities.
-var TightEncodingCapabilities = []Capability{
-	{Code: 0, Vendor: "STDV", Signature: "RAW_____"},
-	{Code: 1, Vendor: "STDV", Signature: "COPYRECT"},
-	{Code: 7, Vendor: "TGHT", Signature: "TIGHT___"},
 }
 
 func negotiateTightTunnel(rw *buffer.ReadWriter) error {

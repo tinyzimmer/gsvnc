@@ -6,24 +6,6 @@ import (
 	"github.com/go-vgo/robotgo"
 )
 
-func (d *Display) handleKeyEventsLoop() {
-	for {
-		select {
-		case ev, ok := <-d.keyEvQueue:
-			if !ok {
-				// Client disconnected.
-				return
-			}
-			if ev.IsDown() {
-				d.appendDownKeyIfMissing(ev.Key)
-				d.dispatchDownKeys()
-			} else {
-				d.removeDownKey(ev.Key)
-			}
-		}
-	}
-}
-
 func (d *Display) dispatchDownKeys() {
 	if len(d.downKeys) == 1 {
 		ks, ok := robotASCIMap[d.downKeys[0]]
@@ -97,6 +79,8 @@ var robotASCIMap = map[uint32]string{
 	uint32(';'): ";", uint32('\''): "'",
 	uint32('['): "[", uint32(']'): "]", uint32('\\'): "\\",
 	uint32('-'): "-", uint32('+'): "+",
+
+	32: "space",
 
 	0xff08: "backspace",
 	0xffff: "delete",
