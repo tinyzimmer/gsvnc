@@ -22,6 +22,7 @@ type Encoding interface {
 var EnabledEncodings = []Encoding{
 	&RawEncoding{},
 	&TightEncoding{},
+	&TightPNGEncoding{},
 }
 
 // GetDefaults returns a slice of the default encoding handlers.

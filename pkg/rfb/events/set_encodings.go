@@ -29,8 +29,26 @@ func (s *SetEncodings) Handle(buf *buffer.ReadWriter, d *display.Display) error 
 		}
 	}
 
-	log.Infof("Client encodings: %#v", encTypes)
-	d.SetEncodings(encTypes)
+	encs, pseudo := splitPseudoEncodings(encTypes)
+	log.Infof("Client encodings: %#v", encs)
+	log.Infof("Client pseudo-encodings: %#v", pseudo)
+	d.SetEncodings(encs, pseudo)
 
 	return nil
+}
+
+func splitPseudoEncodings(encs []int32) (encodings, pseudoEncodings []int32) {
+	encodings = make([]int32, 0)
+	var i int
+	for i = 0; i < len(encs); i++ {
+		encodings = append(encodings, encs[i])
+		if encs[i] == 0 {
+			break
+		}
+	}
+	if i == len(encs)-1 {
+		return
+	}
+	pseudoEncodings = encs[i+1:]
+	return
 }

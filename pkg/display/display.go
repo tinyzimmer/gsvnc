@@ -18,6 +18,7 @@ type Display struct {
 	pixelFormat      *types.PixelFormat
 	getEncodingsFunc GetEncodingsFunc
 	encodings        []int32
+	pseudoEncodings  []int32
 	currentEnc       encodings.Encoding
 
 	// Read/writer for the connected client
@@ -98,8 +99,9 @@ func (d *Display) SetPixelFormat(pf *types.PixelFormat) { d.pixelFormat = pf }
 func (d *Display) GetEncodings() []int32 { return d.encodings }
 
 // SetEncodings sets the encodings that the connected client supports.
-func (d *Display) SetEncodings(encs []int32) {
+func (d *Display) SetEncodings(encs []int32, pseudoEns []int32) {
 	d.encodings = encs
+	d.pseudoEncodings = pseudoEns
 	d.currentEnc = d.getEncodingsFunc(encs)
 }
 
