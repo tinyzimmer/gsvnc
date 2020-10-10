@@ -14,6 +14,6 @@ type RawEncoding struct{}
 func (r *RawEncoding) Code() int32 { return 0 }
 
 // HandleBuffer handles an image sample.
-func (r *RawEncoding) HandleBuffer(w io.Writer, f *types.PixelFormat, img *image.RGBA) {
+func (r *RawEncoding) HandleBuffer(w io.Writer, f *types.PixelFormat, img *image.NRGBA) {
 	w.Write(applyPixelFormat(img, f))
 }

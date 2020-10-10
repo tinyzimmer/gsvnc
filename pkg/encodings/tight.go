@@ -19,7 +19,7 @@ type TightEncoding struct{}
 func (t *TightEncoding) Code() int32 { return 7 }
 
 // HandleBuffer handles an image sample.
-func (t *TightEncoding) HandleBuffer(w io.Writer, f *types.PixelFormat, img *image.RGBA) {
+func (t *TightEncoding) HandleBuffer(w io.Writer, f *types.PixelFormat, img *image.NRGBA) {
 	compressed := new(bytes.Buffer)
 
 	err := jpeg.Encode(compressed, img, nil)

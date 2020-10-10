@@ -14,7 +14,7 @@ type Encoding interface {
 	Code() int32
 	// HandleBuffer should craft a rectangle from the given image and
 	// queue it onto the given writer.
-	HandleBuffer(w io.Writer, format *types.PixelFormat, img *image.RGBA)
+	HandleBuffer(w io.Writer, format *types.PixelFormat, img *image.NRGBA)
 }
 
 // EnabledEncodings lists the encodings currently enabled by the server. It can be mutated

@@ -31,7 +31,9 @@ type Display struct {
 	downKeys []uint32
 
 	// contains the incoming samples from the screen
-	frameQueue chan *image.RGBA
+	frameQueue chan *image.NRGBA
+
+	stopCh chan struct{}
 }
 
 // DefaultPixelFormat is the default pixel format used in ServerInit messages.
@@ -60,9 +62,11 @@ func NewDisplay(width, height int, buf *buffer.ReadWriter) *Display {
 		fbReqQueue: make(chan *types.FrameBufferUpdateRequest, 128),
 		ptrEvQueue: make(chan *types.PointerEvent, 128),
 		keyEvQueue: make(chan *types.KeyEvent, 128),
-		frameQueue: make(chan *image.RGBA, 10), // This queue drops messsages if they aren't read in time
+		frameQueue: make(chan *image.NRGBA, 2), // This queue drops messsages if they aren't read in time
 		// down key memory
 		downKeys: make([]uint32, 0),
+		// stop channel for image capturing
+		stopCh: make(chan struct{}),
 	}
 	go display.watchChannels()
 	return display
@@ -97,7 +101,7 @@ func (d *Display) SetEncodings(encs []int32) {
 func (d *Display) GetCurrentEncoding() encodings.Encoding { return d.currentEnc }
 
 // GetLastImage returns the most recent frame for the display.
-func (d *Display) GetLastImage() *image.RGBA { return <-d.frameQueue }
+func (d *Display) GetLastImage() *image.NRGBA { return <-d.frameQueue }
 
 // DispatchFrameBufferUpdate dispatches a FrameBufferUpdateRequest on the request queue.
 func (d *Display) DispatchFrameBufferUpdate(req *types.FrameBufferUpdateRequest) { d.fbReqQueue <- req }
@@ -113,5 +117,9 @@ func (d *Display) Close() error {
 	close(d.fbReqQueue)
 	close(d.ptrEvQueue)
 	close(d.keyEvQueue)
-	return d.pipeline.Destroy()
+	d.stopCh <- struct{}{}
+	if d.pipeline != nil {
+		return d.pipeline.Destroy()
+	}
+	return nil
 }

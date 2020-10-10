@@ -50,12 +50,12 @@ func (d *Display) watchChannels() {
 			log.Debug("Handling framebuffer update request")
 			d.pushFrame(ur)
 
-			// // Send a frame update anyway if there no
-			// // updates on the queue
-			// default:
-			// 	log.Debug("Pushing latest frame to client")
-			// 	last := d.GetLastImage()
-			// 	d.pushImage(last)
+		// Send a frame update anyway if there no
+		// updates on the queue
+		default:
+			log.Debug("Pushing latest frame to client")
+			last := d.GetLastImage()
+			d.pushImage(last)
 		}
 	}
 }
