@@ -1,10 +1,9 @@
 package events
 
 import (
-	"log"
-
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 
@@ -16,7 +15,6 @@ func (s *SetPixelFormat) Code() uint8 { return 0 }
 
 // Handle handles the event.
 func (s *SetPixelFormat) Handle(buf *buffer.ReadWriter, d *display.Display) error {
-	log.Printf("handling setpixel format")
 
 	if err := buf.ReadPadding(3); err != nil {
 		return err
@@ -27,7 +25,7 @@ func (s *SetPixelFormat) Handle(buf *buffer.ReadWriter, d *display.Display) erro
 		return err
 	}
 
-	log.Printf("Client wants pixel format: %#v", pf)
+	log.Infof("Client wants pixel format: %#v", pf)
 	d.SetPixelFormat(&pf)
 
 	if err := buf.ReadPadding(3); err != nil {

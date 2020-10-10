@@ -1,8 +1,9 @@
 package rfb
 
 import (
-	"log"
 	"net"
+
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 )
 
 // NewServer creates a new RFB server with an initial width and height.
@@ -33,12 +34,14 @@ func (s *Server) Serve(ln net.Listener) error {
 			return err
 		}
 
+		log.Info("New client connection from ", c.RemoteAddr().String())
+
 		// Create a new client connection
 		conn := s.newConn(c)
 
 		// Do the rfb handshake
 		if err := conn.doHandshake(); err != nil {
-			log.Println("Error during server-client handshake:", err.Error())
+			log.Error("Error during server-client handshake: ", err.Error())
 			conn.c.Close()
 			continue
 		}

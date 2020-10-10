@@ -1,10 +1,9 @@
 package events
 
 import (
-	"log"
-
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 )
 
 // SetEncodings handles the client set-encodings event.
@@ -30,7 +29,7 @@ func (s *SetEncodings) Handle(buf *buffer.ReadWriter, d *display.Display) error 
 		}
 	}
 
-	log.Printf("Client encodings: %#v", encTypes)
+	log.Infof("Client encodings: %#v", encTypes)
 	d.SetEncodings(encTypes)
 
 	return nil

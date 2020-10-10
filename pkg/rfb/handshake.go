@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
+	"reflect"
 
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
+	"github.com/tinyzimmer/gsvnc/pkg/log"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/auth"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/versions"
 	"github.com/tinyzimmer/gsvnc/pkg/util"
@@ -24,14 +25,14 @@ func (c *Conn) doHandshake() error {
 		return err
 	}
 
-	log.Println("reading client init")
+	log.Info("Reading client init")
 
 	// ClientInit
 	if _, err := c.buf.ReadByte(); err != nil {
 		return err
 	}
 
-	log.Println("sending server init")
+	log.Info("Sending server init")
 	format := c.display.GetPixelFormat()
 
 	// 6.3.2. ServerInit
@@ -67,26 +68,23 @@ func negotiateAuth(ver string, rw *buffer.ReadWriter) (auth.Type, error) {
 	var authType auth.Type
 	buf := new(bytes.Buffer)
 
-	if ver >= versions.V7 {
-		util.Write(buf, uint8(len(auth.EnabledAuthTypes)))
-		for _, t := range auth.EnabledAuthTypes {
-			util.Write(buf, t.Code())
-		}
-		rw.Dispatch(buf.Bytes())
-		wanted, err := rw.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-		if !auth.IsSupported(wanted) {
-			return nil, fmt.Errorf("client wanted unsupported auth type %d", int(wanted))
-		}
-		authType = auth.GetAuth(wanted)
-	} else {
-		// Old way. Just tell client we're doing no auth.
-		authType = auth.GetNone()
-		util.Write(buf, uint32(authType.Code()))
-		rw.Dispatch(buf.Bytes())
+	log.Info("Negotiating security")
+
+	util.Write(buf, uint8(len(auth.EnabledAuthTypes)))
+	for _, t := range auth.EnabledAuthTypes {
+		util.Write(buf, t.Code())
 	}
+	rw.Dispatch(buf.Bytes())
+	wanted, err := rw.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	if !auth.IsSupported(wanted) {
+		return nil, fmt.Errorf("client wanted unsupported auth type %d", int(wanted))
+	}
+
+	authType = auth.GetAuth(wanted)
+	log.Info("Using security: ", reflect.TypeOf(authType).Elem().Name())
 
 	if err := authType.Negotiate(rw); err != nil {
 		buf = new(bytes.Buffer)
