@@ -23,7 +23,7 @@ func (d *Display) handleKeyEvents() {
 
 func (d *Display) handlePointerEvents() {
 	for {
-		select { // Pointer events
+		select {
 		case ev, ok := <-d.ptrEvQueue:
 			if !ok {
 				// Client disconnected.
@@ -35,10 +35,7 @@ func (d *Display) handlePointerEvents() {
 	}
 }
 
-func (d *Display) watchChannels() {
-	go d.handleKeyEvents()
-	go d.handlePointerEvents()
-
+func (d *Display) handleFrameBufferEvents() {
 	for {
 		select {
 		// Framebuffer update requests
@@ -50,12 +47,17 @@ func (d *Display) watchChannels() {
 			log.Debug("Handling framebuffer update request")
 			d.pushFrame(ur)
 
-		// Send a frame update anyway if there no
-		// updates on the queue
+		// Send a frame update anyway if there are no updates on the queue
 		default:
 			log.Debug("Pushing latest frame to client")
 			last := d.GetLastImage()
 			d.pushImage(last)
 		}
 	}
+}
+
+func (d *Display) watchChannels() {
+	go d.handleKeyEvents()
+	go d.handlePointerEvents()
+	go d.handleFrameBufferEvents()
 }

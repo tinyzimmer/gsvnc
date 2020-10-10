@@ -9,7 +9,7 @@ import (
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 
-func applyPixelFormat(img *image.NRGBA, format *types.PixelFormat) []byte {
+func applyPixelFormat(img *image.RGBA, format *types.PixelFormat) []byte {
 	formattedImage := new(bytes.Buffer)
 	b := img.Bounds()
 	width, height := b.Dx(), b.Dy()

@@ -31,7 +31,7 @@ type Display struct {
 	downKeys []uint32
 
 	// contains the incoming samples from the screen
-	frameQueue chan *image.NRGBA
+	frameQueue chan *image.RGBA
 
 	stopCh chan struct{}
 }
@@ -62,7 +62,8 @@ func NewDisplay(width, height int, buf *buffer.ReadWriter) *Display {
 		fbReqQueue: make(chan *types.FrameBufferUpdateRequest, 128),
 		ptrEvQueue: make(chan *types.PointerEvent, 128),
 		keyEvQueue: make(chan *types.KeyEvent, 128),
-		frameQueue: make(chan *image.NRGBA, 2), // This queue drops messsages if they aren't read in time
+		// Image channel
+		frameQueue: make(chan *image.RGBA, 2), // A channel that will essentially only ever have the latest frame available.
 		// down key memory
 		downKeys: make([]uint32, 0),
 		// stop channel for image capturing
@@ -101,7 +102,7 @@ func (d *Display) SetEncodings(encs []int32) {
 func (d *Display) GetCurrentEncoding() encodings.Encoding { return d.currentEnc }
 
 // GetLastImage returns the most recent frame for the display.
-func (d *Display) GetLastImage() *image.NRGBA { return <-d.frameQueue }
+func (d *Display) GetLastImage() *image.RGBA { return <-d.frameQueue }
 
 // DispatchFrameBufferUpdate dispatches a FrameBufferUpdateRequest on the request queue.
 func (d *Display) DispatchFrameBufferUpdate(req *types.FrameBufferUpdateRequest) { d.fbReqQueue <- req }

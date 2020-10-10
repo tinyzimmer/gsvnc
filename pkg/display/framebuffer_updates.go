@@ -30,7 +30,7 @@ func (d *Display) pushFrame(ur *types.FrameBufferUpdateRequest) {
 	d.pushImage(li)
 }
 
-func (d *Display) pushImage(img *image.NRGBA) {
+func (d *Display) pushImage(img *image.RGBA) {
 
 	b := img.Bounds()
 
@@ -59,8 +59,8 @@ func (d *Display) pushImage(img *image.NRGBA) {
 	d.buf.Dispatch(buf.Bytes())
 }
 
-func truncateImage(ur *types.FrameBufferUpdateRequest, img *image.NRGBA) *image.NRGBA {
-	truncated := image.NewNRGBA(
+func truncateImage(ur *types.FrameBufferUpdateRequest, img *image.RGBA) *image.RGBA {
+	truncated := image.NewRGBA(
 		image.Rect(
 			int(ur.X), int(ur.Y), int(ur.Width), int(ur.Height),
 		),

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-vgo/robotgo"
+	"github.com/nfnt/resize"
 	"golang.org/x/image/bmp"
 
 	"github.com/tinyzimmer/go-gst/gst"
@@ -30,10 +31,25 @@ func (d *Display) Start() error {
 				defer robotgo.FreeBitmap(bitMap)
 
 				bs := robotgo.ToBitmapBytes(bitMap)
+
+				var img image.Image
+
 				img, err := bmp.Decode(bytes.NewReader(bs))
 				if err != nil {
 					log.Error("Unable to decode bitmap: ", err.Error())
 					return
+				}
+
+				b := img.Bounds()
+				w, h := d.GetDimensions()
+				if b.Max.X > w || b.Max.Y > h {
+					img = resize.Resize(uint(w), uint(h), img, resize.Lanczos3)
+				}
+
+				// if the image was resized this will be done already, otherwise, convert
+				// to RGBA
+				if _, ok := img.(*image.RGBA); !ok {
+					img = convertToRGBA(img.(*image.NRGBA))
 				}
 
 				log.Debug("Queueing frame for processing")
@@ -42,7 +58,7 @@ func (d *Display) Start() error {
 				case <-d.stopCh:
 					log.Debug("Received event on stop channel, stopping screen capture")
 					cont = false
-				case d.frameQueue <- img.(*image.NRGBA):
+				case d.frameQueue <- img.(*image.RGBA):
 				default:
 					// pop the oldest item off the queue
 					// and let the next sample try to get in
@@ -60,6 +76,20 @@ func (d *Display) Start() error {
 		}
 	}()
 	return nil
+}
+
+func convertToRGBA(in *image.NRGBA) *image.RGBA {
+	size := in.Bounds().Size()
+	rect := image.Rect(0, 0, size.X, size.Y)
+	wImg := image.NewRGBA(rect)
+	// loop though all the x
+	for x := 0; x < size.X; x++ {
+		// and now loop thorough all of this x's y
+		for y := 0; y < size.Y; y++ {
+			wImg.Set(x, y, in.At(x, y))
+		}
+	}
+	return wImg
 }
 
 // // Start will start the display. It assumes gstreamer has already been initialized.
