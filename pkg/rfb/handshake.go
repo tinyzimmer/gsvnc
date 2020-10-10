@@ -86,6 +86,7 @@ func (c *Conn) negotiateAuth(ver string, rw *buffer.ReadWriter) (auth.Type, erro
 	log.Info("Using security: ", reflect.TypeOf(authType).Elem().Name())
 
 	if err := authType.Negotiate(rw); err != nil {
+		log.Error("Authentication failed")
 		buf = new(bytes.Buffer)
 		util.Write(buf, uint32(statusFailed))
 		rw.Dispatch(buf.Bytes())

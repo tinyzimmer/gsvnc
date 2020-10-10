@@ -62,7 +62,7 @@ type Opts struct {
 // NewDisplay returns a new display with the given dimensions. These
 // dimensions can be mutated later on depending on client support.
 func NewDisplay(opts *Opts) *Display {
-	display := &Display{
+	return &Display{
 		displayProvider:  providers.GetDisplayProvider(opts.DisplayProvider),
 		width:            opts.Width,
 		height:           opts.Height,
@@ -76,8 +76,6 @@ func NewDisplay(opts *Opts) *Display {
 		// down key memory
 		downKeys: make([]uint32, 0),
 	}
-	go display.watchChannels()
-	return display
 }
 
 // GetDimensions returns the current dimensions of the display.
@@ -121,7 +119,13 @@ func (d *Display) DispatchKeyEvent(ev *types.KeyEvent) { d.keyEvQueue <- ev }
 func (d *Display) DispatchPointerEvent(ev *types.PointerEvent) { d.ptrEvQueue <- ev }
 
 // Start will start the underlying display provider.
-func (d *Display) Start() error { return d.displayProvider.Start(d.GetDimensions()) }
+func (d *Display) Start() error {
+	if err := d.displayProvider.Start(d.GetDimensions()); err != nil {
+		return err
+	}
+	go d.watchChannels()
+	return nil
+}
 
 // Close will stop the gstreamer pipeline.
 func (d *Display) Close() error {
