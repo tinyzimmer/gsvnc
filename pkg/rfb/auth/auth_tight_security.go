@@ -7,33 +7,28 @@ import (
 
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/internal/util"
+	"github.com/tinyzimmer/gsvnc/pkg/rfb/types"
 )
 
-// Capability represents a TightSecurity capability.
-type Capability struct {
-	Code              int32
-	Vendor, Signature string
-}
-
 // TightTunnelCapabilities represents TightSecurity tunnel capabilities.
-var TightTunnelCapabilities = []Capability{
+var TightTunnelCapabilities = []types.TightCapability{
 	{Code: 0, Vendor: "TGHT", Signature: "NOTUNNEL"},
 }
 
 // TightAuthCapabilities represents TightSecurity auth capabilities.
-var TightAuthCapabilities = []Capability{
+var TightAuthCapabilities = []types.TightCapability{
 	{Code: 1, Vendor: "STDV", Signature: "NOAUTH__"},
 	{Code: 2, Vendor: "STDV", Signature: "VNCAUTH_"},
 }
 
 // TightServerMessages represents supported tight server messages.
-var TightServerMessages = []Capability{}
+var TightServerMessages = []types.TightCapability{}
 
 // TightClientMessages represents supported tight client messages.
-var TightClientMessages = []Capability{}
+var TightClientMessages = []types.TightCapability{}
 
 // TightEncodingCapabilities represents TightSecurity encoding capabilities.
-var TightEncodingCapabilities = []Capability{
+var TightEncodingCapabilities = []types.TightCapability{
 	{Code: 0, Vendor: "STDV", Signature: "RAW_____"},
 	{Code: 1, Vendor: "STDV", Signature: "COPYRECT"},
 	{Code: 7, Vendor: "TGHT", Signature: "TIGHT___"},
@@ -41,17 +36,19 @@ var TightEncodingCapabilities = []Capability{
 
 // TightSecurity implements Tight security.
 // https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#tight-security-type
-type TightSecurity struct{}
+type TightSecurity struct {
+	AuthGetter func(code uint8) Type
+}
 
 // Code returns the code.
 func (t *TightSecurity) Code() uint8 { return 16 }
 
 // Negotiate will negotiate tight security.
 func (t *TightSecurity) Negotiate(rw *buffer.ReadWriter) error {
-	if err := negotiateTightTunnel(rw); err != nil {
+	if err := t.negotiateTightTunnel(rw); err != nil {
 		return err
 	}
-	return negotiateTightAuth(rw)
+	return t.negotiateTightAuth(rw)
 }
 
 // ExtendServerInit signals to the rfb server that we extend the ServerInit message.
@@ -72,7 +69,7 @@ func (t *TightSecurity) ExtendServerInit(buf io.Writer) {
 	}
 }
 
-func negotiateTightTunnel(rw *buffer.ReadWriter) error {
+func (t *TightSecurity) negotiateTightTunnel(rw *buffer.ReadWriter) error {
 	// Write the supported tunnel capabilities to the client
 	buf := new(bytes.Buffer)
 	util.Write(buf, uint32(len(TightTunnelCapabilities)))
@@ -94,10 +91,11 @@ func negotiateTightTunnel(rw *buffer.ReadWriter) error {
 	return nil
 }
 
-func negotiateTightAuth(rw *buffer.ReadWriter) error {
+func (t *TightSecurity) negotiateTightAuth(rw *buffer.ReadWriter) error {
 	buf := new(bytes.Buffer)
-	util.Write(buf, uint32(len(TightAuthCapabilities)))
-	for _, cap := range TightAuthCapabilities {
+	caps := t.getEnabledAuthCaps()
+	util.Write(buf, uint32(len(caps)))
+	for _, cap := range caps {
 		util.PackStruct(buf, &cap)
 	}
 	rw.Dispatch(buf.Bytes())
@@ -106,10 +104,19 @@ func negotiateTightAuth(rw *buffer.ReadWriter) error {
 	var auth int32
 	rw.Read(&auth)
 
-	if !IsSupported(uint8(auth)) {
+	authType := t.AuthGetter(uint8(auth))
+	if authType == nil {
 		return fmt.Errorf("client requested unsupported tight auth type: %d", auth)
 	}
-
-	authType := GetAuth(uint8(auth))
 	return authType.Negotiate(rw)
+}
+
+func (t *TightSecurity) getEnabledAuthCaps() []types.TightCapability {
+	enabledCaps := make([]types.TightCapability, 0)
+	for _, cap := range TightAuthCapabilities {
+		if t := t.AuthGetter(uint8(cap.Code)); t != nil {
+			enabledCaps = append(enabledCaps, cap)
+		}
+	}
+	return enabledCaps
 }

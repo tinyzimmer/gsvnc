@@ -11,8 +11,8 @@ type Event interface {
 	Handle(buf *buffer.ReadWriter, d *display.Display) error
 }
 
-// EnabledEvents is a list of the currently enabled event handlers.
-var EnabledEvents = []Event{
+// DefaultEvents is a list of the default enabled event handlers.
+var DefaultEvents = []Event{
 	&SetEncodings{},
 	&SetPixelFormat{},
 	&FrameBufferUpdate{},
@@ -23,26 +23,11 @@ var EnabledEvents = []Event{
 
 // GetDefaults returns a slice of the default event handlers.
 func GetDefaults() []Event {
-	out := make([]Event, len(EnabledEvents))
-	for i, t := range EnabledEvents {
+	out := make([]Event, len(DefaultEvents))
+	for i, t := range DefaultEvents {
 		out[i] = t
 	}
 	return out
-}
-
-// DisableEvent removes the given event from the list of EnabledEvents.
-func DisableEvent(ev Event) {
-	EnabledEvents = remove(EnabledEvents, ev)
-}
-
-func remove(ee []Event, e Event) []Event {
-	newEvs := make([]Event, 0)
-	for _, enabled := range ee {
-		if enabled.Code() != e.Code() {
-			newEvs = append(newEvs, enabled)
-		}
-	}
-	return newEvs
 }
 
 // CloseEventHandlers will iterate each event handler in the map and if it provides a Close

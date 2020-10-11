@@ -19,6 +19,7 @@ import (
 type ServerOpts struct {
 	DisplayProvider  providers.Provider
 	Width, Height    int
+	ServerPassword   string
 	EnabledEncodings []encodings.Encoding
 	EnabledAuthTypes []auth.Type
 	EnabledEvents    []events.Event
@@ -27,10 +28,16 @@ type ServerOpts struct {
 // NewServer creates a new RFB server with an initial width and height.
 func NewServer(opts *ServerOpts) *Server {
 	server := &Server{
-		displayProvider: opts.DisplayProvider,
-		width:           opts.Width,
-		height:          opts.Height,
+		displayProvider:  opts.DisplayProvider,
+		width:            opts.Width,
+		height:           opts.Height,
+		serverPassword:   opts.ServerPassword,
+		enabledEncodings: opts.EnabledEncodings,
+		enabledAuthTypes: opts.EnabledAuthTypes,
+		enabledEvents:    opts.EnabledEvents,
 	}
+
+	// Configure default events if any are empty
 	if len(opts.EnabledEncodings) == 0 {
 		server.enabledEncodings = encodings.GetDefaults()
 	}
@@ -40,14 +47,23 @@ func NewServer(opts *ServerOpts) *Server {
 	if len(opts.EnabledEvents) == 0 {
 		server.enabledEvents = events.GetDefaults()
 	}
+
+	// Configure tight if enabled
+	if server.TightIsEnabled() {
+		iface := server.GetAuthByName("TightSecurity")
+		tight := iface.(*auth.TightSecurity)
+		tight.AuthGetter = server.GetAuth
+		// TODO: Configure capabilities
+	}
+
 	return server
 }
 
 // Server represents an RFB server. A channel is exposed for handling incoming client
 // connections.
 type Server struct {
-	width, height int
-
+	width, height    int
+	serverPassword   string
 	displayProvider  providers.Provider
 	enabledEncodings []encodings.Encoding
 	enabledAuthTypes []auth.Type
@@ -147,6 +163,16 @@ func (s *Server) TightIsEnabled() bool {
 func (s *Server) GetAuth(code uint8) auth.Type {
 	for _, t := range s.enabledAuthTypes {
 		if t.Code() == code {
+			return t
+		}
+	}
+	return nil
+}
+
+// GetAuthByName returns the auth interface by the given name.
+func (s *Server) GetAuthByName(name string) auth.Type {
+	for _, t := range s.enabledAuthTypes {
+		if reflect.TypeOf(t).Elem().Name() == name {
 			return t
 		}
 	}

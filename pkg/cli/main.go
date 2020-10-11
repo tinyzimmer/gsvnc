@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
@@ -35,6 +36,7 @@ var websockify bool
 var websockifyHost string
 var websockifyPort int32
 var noTCP bool
+var serverPasswordFile string
 
 // RootCmd is the exported root cmd for the gsvnc server.
 var RootCmd = &cobra.Command{
@@ -64,6 +66,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&bindHost, "host", "H", "127.0.0.1", "The host address to bind the server to.")
 	RootCmd.PersistentFlags().Int32VarP(&bindPort, "port", "p", 5900, "The port to bind the server to.")
 	RootCmd.PersistentFlags().StringVarP(&initialResolution, "resolution", "r", "", "The initial resolution to set for display connections. Defaults to auto-detect.")
+	RootCmd.PersistentFlags().StringVarP(&serverPasswordFile, "password-file", "", "", "A file to read in a server password from. One will be generated if this is omitted.")
 	RootCmd.PersistentFlags().BoolVarP(&listFeatures, "list-features", "l", false, "List the available features and exit.")
 	RootCmd.PersistentFlags().StringVarP(&displayProvider, "display", "D", providers.ProviderGstreamer, "The display provider to use for RFB connections.")
 	RootCmd.PersistentFlags().BoolVarP(&websockify, "websockify", "w", false, "Start a websockify listener")
@@ -77,12 +80,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 	var err error
 
-	if err = configureFeatures(args); err != nil {
-		return err
-	}
+	authTypes, encTypes, eventTypes := configureFeatures(args)
 
 	if listFeatures {
-		doListFeatures()
+		doListFeatures(authTypes, encTypes, eventTypes)
 		os.Exit(0)
 	}
 
@@ -94,8 +95,8 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	log.Info("Using display provider: ", displayProvider)
 
+	// Configure initial display resolution
 	var w, h int
-
 	if initialResolution == "" {
 		w, h = robotgo.GetScreenSize()
 		log.Infof("Detected initial screen resolution of %dx%d", w, h)
@@ -116,13 +117,13 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	var enabledAuths, enabledEncs, enabledEvents []string
-	for _, sec := range auth.EnabledAuthTypes {
+	for _, sec := range authTypes {
 		enabledAuths = append(enabledAuths, reflect.TypeOf(sec).Elem().Name())
 	}
-	for _, enc := range encodings.EnabledEncodings {
+	for _, enc := range encTypes {
 		enabledEncs = append(enabledEncs, reflect.TypeOf(enc).Elem().Name())
 	}
-	for _, ev := range events.EnabledEvents {
+	for _, ev := range eventTypes {
 		enabledEvents = append(enabledEvents, reflect.TypeOf(ev).Elem().Name())
 	}
 
@@ -130,17 +131,30 @@ func run(cmd *cobra.Command, args []string) error {
 	log.Info("Enabled encodings: ", enabledEncs)
 	log.Info("Enabled event handlers: ", enabledEvents)
 
-	if auth.VNCAuthIsEnabled() {
-		log.Info("VNCAuth is enabled, generating a server password")
-		passw := util.RandomString(8)
-		config.VNCAuthPassword = passw
-		log.Info("Clients using VNCAuth can connect with the following password: ", passw)
+	opts := &rfb.ServerOpts{
+		Width: w, Height: h,
+		DisplayProvider:  providers.Provider(displayProvider),
+		EnabledAuthTypes: authTypes,
+		EnabledEncodings: encTypes,
+		EnabledEvents:    eventTypes,
+	}
+
+	if authIsEnabled(authTypes, "VNCAuth") {
+		if serverPasswordFile != "" {
+			passw, err := ioutil.ReadFile(serverPasswordFile)
+			if err != nil {
+				return err
+			}
+			opts.ServerPassword = string(passw)
+		} else {
+			log.Info("VNCAuth is enabled and no password provided, generating a server password")
+			opts.ServerPassword = util.RandomString(8)
+			log.Info("Clients using VNCAuth can connect with the following password: ", opts.ServerPassword)
+		}
 	}
 
 	// Create a new rfb server
-	server := rfb.NewServer(&rfb.ServerOpts{
-		Width: w, Height: h, DisplayProvider: providers.Provider(displayProvider),
-	})
+	server := rfb.NewServer(opts)
 
 	if noTCP && !websockify {
 		return errors.New("No listeners configured")
@@ -175,7 +189,7 @@ func serveWebsockify(srvr *rfb.Server) error {
 	return srvr.ServeWebsockify(l)
 }
 
-func doListFeatures() {
+func doListFeatures(authTypes []auth.Type, encTypes []encodings.Encoding, evTypes []events.Event) {
 	w := new(tabwriter.Writer)
 	buf := new(bytes.Buffer)
 
@@ -194,19 +208,19 @@ func doListFeatures() {
 
 	fmt.Fprintln(w, "Security Types")
 	fmt.Fprintln(w, "--------------")
-	for _, sec := range auth.EnabledAuthTypes {
+	for _, sec := range authTypes {
 		fmt.Fprintf(w, lformat, reflect.TypeOf(sec).Elem().Name())
 	}
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Encodings")
 	fmt.Fprintln(w, "---------")
-	for _, enc := range encodings.EnabledEncodings {
+	for _, enc := range encTypes {
 		fmt.Fprintf(w, lformat, reflect.TypeOf(enc).Elem().Name())
 	}
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Events")
 	fmt.Fprintln(w, "------")
-	for _, ev := range events.EnabledEvents {
+	for _, ev := range evTypes {
 		fmt.Fprintf(w, lformat, reflect.TypeOf(ev).Elem().Name())
 	}
 
@@ -214,57 +228,74 @@ func doListFeatures() {
 	fmt.Println(buf.String())
 }
 
-func configureFeatures(args []string) error {
-	if len(args) == 0 {
-		return nil
-	}
-ArgLoop:
-	for _, arg := range args {
+func configureFeatures(args []string) ([]auth.Type, []encodings.Encoding, []events.Event) {
+	return configureAuthTypes(auth.GetDefaults(), args),
+		configureEncodings(encodings.GetDefaults(), args),
+		configureEvents(events.GetDefaults(), args)
+}
 
-		if strings.HasPrefix(arg, "+") {
-
-			fmt.Println("There are currently no optional featuress to enable, ignoring", arg)
-
-		} else if strings.HasPrefix(arg, "-") {
-
-			featName := strings.TrimPrefix(arg, "-")
-
-			// Auth types
-			for _, sec := range auth.EnabledAuthTypes {
-				if reflect.TypeOf(sec).Elem().Name() == featName {
-					if auth.TightIsEnabled() {
-						auth.DisableTightAuth(int32(sec.Code()))
-					}
-					auth.DisableAuth(sec)
-					continue ArgLoop
-				}
-			}
-
-			// Encodings
-			for _, enc := range encodings.EnabledEncodings {
-				if reflect.TypeOf(enc).Elem().Name() == featName {
-					if auth.TightIsEnabled() {
-						auth.DisableTightAuth(int32(enc.Code()))
-					}
-					encodings.DisableEncoding(enc)
-					continue ArgLoop
-				}
-			}
-
-			// Event handlers
-			for _, ev := range events.EnabledEvents {
-				if reflect.TypeOf(ev).Elem().Name() == featName {
-					events.DisableEvent(ev)
-					continue ArgLoop
-				}
-			}
-
-			// If we got here it means we didn't have anything matching the request.
-			return fmt.Errorf("Could not find any features with the name, %s", featName)
-
-		} else {
-			return fmt.Errorf("Bogus argument: %s", arg)
+func authIsEnabled(tt []auth.Type, name string) bool {
+	for _, t := range tt {
+		if reflect.TypeOf(t).Elem().Name() == name {
+			return true
 		}
 	}
-	return nil
+	return false
+}
+
+func configureAuthTypes(tt []auth.Type, args []string) []auth.Type {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			tt = removeAuthType(tt, strings.TrimPrefix(arg, "-"))
+		}
+	}
+	return tt
+}
+
+func configureEncodings(tt []encodings.Encoding, args []string) []encodings.Encoding {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			tt = removeEncoding(tt, strings.TrimPrefix(arg, "-"))
+		}
+	}
+	return tt
+}
+
+func configureEvents(tt []events.Event, args []string) []events.Event {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			tt = removeEvent(tt, strings.TrimPrefix(arg, "-"))
+		}
+	}
+	return tt
+}
+
+func removeAuthType(tt []auth.Type, name string) []auth.Type {
+	newTT := make([]auth.Type, 0)
+	for _, present := range tt {
+		if reflect.TypeOf(present).Elem().Name() != name {
+			newTT = append(newTT, present)
+		}
+	}
+	return newTT
+}
+
+func removeEncoding(tt []encodings.Encoding, name string) []encodings.Encoding {
+	newTT := make([]encodings.Encoding, 0)
+	for _, present := range tt {
+		if reflect.TypeOf(present).Elem().Name() != name {
+			newTT = append(newTT, present)
+		}
+	}
+	return newTT
+}
+
+func removeEvent(tt []events.Event, name string) []events.Event {
+	newTT := make([]events.Event, 0)
+	for _, present := range tt {
+		if reflect.TypeOf(present).Elem().Name() != name {
+			newTT = append(newTT, present)
+		}
+	}
+	return newTT
 }

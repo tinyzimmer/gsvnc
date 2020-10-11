@@ -69,8 +69,8 @@ func (c *Conn) negotiateAuth(ver string, rw *buffer.ReadWriter) (auth.Type, erro
 
 	log.Info("Negotiating security")
 
-	util.Write(buf, uint8(len(auth.EnabledAuthTypes)))
-	for _, t := range auth.EnabledAuthTypes {
+	util.Write(buf, uint8(len(c.s.enabledAuthTypes)))
+	for _, t := range c.s.enabledAuthTypes {
 		util.Write(buf, t.Code())
 	}
 	rw.Dispatch(buf.Bytes())

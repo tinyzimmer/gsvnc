@@ -6,18 +6,19 @@ import (
 	"errors"
 
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
-	"github.com/tinyzimmer/gsvnc/pkg/config"
 )
 
 // VNCAuth represents VNCAuthentication.
-type VNCAuth struct{}
+type VNCAuth struct {
+	Password string
+}
 
 // Code returns the code for vnc uth.
 func (a *VNCAuth) Code() uint8 { return 2 }
 
 // Negotiate immediately returns nil.
 func (a *VNCAuth) Negotiate(rw *buffer.ReadWriter) error {
-	key := config.VNCAuthPassword
+	key := a.Password
 	keyBytes := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
 	if len(key) > 8 {
