@@ -61,8 +61,23 @@ func (d *Display) handleFrameBufferEvents() {
 	}
 }
 
+func (d *Display) handleCutTextEvents() {
+	for {
+		select {
+		case ev, ok := <-d.cutTxtEvsQ:
+			if !ok {
+				// Client disconnected.
+				return
+			}
+			log.Debug("Got cut-text event: ", ev)
+			d.syncToClipboard(ev)
+		}
+	}
+}
+
 func (d *Display) watchChannels() {
 	go d.handleKeyEvents()
 	go d.handlePointerEvents()
 	go d.handleFrameBufferEvents()
+	go d.handleCutTextEvents()
 }

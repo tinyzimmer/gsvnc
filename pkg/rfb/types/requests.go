@@ -47,3 +47,9 @@ type FrameBufferRectangle struct {
 	Width, Height uint16
 	EncType       int32
 }
+
+// ClientCutText is a message signaling that the client has new text in its cut buffer.
+type ClientCutText struct {
+	Length uint32
+	Text   []uint8
+}

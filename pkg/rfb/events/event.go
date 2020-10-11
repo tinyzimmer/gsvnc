@@ -18,6 +18,7 @@ var EnabledEvents = []Event{
 	&FrameBufferUpdate{},
 	&KeyEvent{},
 	&PointerEvent{},
+	&ClientCutText{},
 }
 
 // GetDefaults returns a slice of the default event handlers.

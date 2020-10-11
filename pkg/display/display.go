@@ -28,6 +28,7 @@ type Display struct {
 	fbReqQueue chan *types.FrameBufferUpdateRequest
 	ptrEvQueue chan *types.PointerEvent
 	keyEvQueue chan *types.KeyEvent
+	cutTxtEvsQ chan *types.ClientCutText
 
 	// Memory of keys that are currently down. Reiterated in order
 	// on every down subsequent down event.
@@ -74,6 +75,7 @@ func NewDisplay(opts *Opts) *Display {
 		fbReqQueue: make(chan *types.FrameBufferUpdateRequest, 128),
 		ptrEvQueue: make(chan *types.PointerEvent, 128),
 		keyEvQueue: make(chan *types.KeyEvent, 128),
+		cutTxtEvsQ: make(chan *types.ClientCutText, 128),
 		// down key memory
 		downKeys: make([]uint32, 0),
 	}
@@ -134,5 +136,6 @@ func (d *Display) Close() error {
 	close(d.fbReqQueue)
 	close(d.ptrEvQueue)
 	close(d.keyEvQueue)
+	close(d.cutTxtEvsQ)
 	return d.displayProvider.Close()
 }

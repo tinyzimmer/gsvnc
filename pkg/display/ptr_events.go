@@ -11,7 +11,7 @@ func (d *Display) servePointerEvent(ev *types.PointerEvent) {
 		btns[maskType] = nthBitOf(ev.ButtonMask, mask) == 1
 	}
 	// This is just a mouse move event
-	robotgo.MoveMouseSmooth(int(ev.X), int(ev.Y), 1.0, 100.0)
+	robotgo.MoveMouse(int(ev.X), int(ev.Y))
 }
 
 var btnMasks = map[int]string{
@@ -27,13 +27,4 @@ var btnMasks = map[int]string{
 
 func nthBitOf(bit uint8, n int) uint8 {
 	return (bit & (1 << n)) >> n
-}
-
-func allAreUp(btns map[string]bool) bool {
-	for _, t := range btns {
-		if t {
-			return false
-		}
-	}
-	return true
 }

@@ -1,11 +1,11 @@
 package rfb
 
 import (
-	"log"
 	"net"
 
 	"github.com/tinyzimmer/gsvnc/pkg/buffer"
 	"github.com/tinyzimmer/gsvnc/pkg/display"
+	"github.com/tinyzimmer/gsvnc/pkg/internal/log"
 	"github.com/tinyzimmer/gsvnc/pkg/rfb/events"
 )
 
@@ -38,7 +38,7 @@ func (c *Conn) serve() {
 	defer c.c.Close()
 
 	if err := c.display.Start(); err != nil {
-		log.Println("Error starting display:", err)
+		log.Errorf("Error starting display: %s", err)
 		return
 	}
 	defer c.display.Close()
@@ -51,16 +51,16 @@ func (c *Conn) serve() {
 	for {
 		cmd, err := c.buf.ReadByte()
 		if err != nil {
-			log.Println("Client disconnect:", err.Error())
+			log.Errorf("Client disconnect: %s", err.Error())
 			return
 		}
 		if hdlr, ok := eventHandlers[cmd]; ok {
 			if err := hdlr.Handle(c.buf, c.display); err != nil {
-				log.Printf("Error handling cmd %d: %s", cmd, err.Error())
+				log.Errorf("Error handling cmd %d: %s", cmd, err.Error())
 				return
 			}
 		} else {
-			log.Printf("unsupported command type %d from client\n", int(cmd))
+			log.Warningf("Unsupported command type %d from client\n", int(cmd))
 		}
 	}
 }
