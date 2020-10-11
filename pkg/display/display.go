@@ -122,6 +122,9 @@ func (d *Display) DispatchKeyEvent(ev *types.KeyEvent) { d.keyEvQueue <- ev }
 // DispatchPointerEvent dispatches a pointer event to the queue.
 func (d *Display) DispatchPointerEvent(ev *types.PointerEvent) { d.ptrEvQueue <- ev }
 
+// DispatchClientCutText dispatches a ClientCutText to the queue.
+func (d *Display) DispatchClientCutText(ev *types.ClientCutText) { d.cutTxtEvsQ <- ev }
+
 // Start will start the underlying display provider.
 func (d *Display) Start() error {
 	if err := d.displayProvider.Start(d.GetDimensions()); err != nil {

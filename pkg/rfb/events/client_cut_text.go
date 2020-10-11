@@ -28,5 +28,6 @@ func (c *ClientCutText) Handle(buf *buffer.ReadWriter, d *display.Display) error
 		return err
 	}
 
+	d.DispatchClientCutText(&req)
 	return nil
 }
